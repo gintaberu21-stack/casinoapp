@@ -258,7 +258,8 @@ export class GameUI {
     this.els["result-title"].textContent = title;
     this.els["result-score"].textContent = `${result.player > 21 ? "BUST" : result.player} — ${result.dealer > 21 ? "BUST" : result.dealer}`;
     this.els["result-delta"].textContent = result.matchComplete ? `${result.matchWins.player} — ${result.matchWins.dealer} ROUNDS` : result.delta === 0 ? "NO CHANGE" : `${result.delta > 0 ? "+" : ""}${result.delta} CHIP`;
-    this.els["next-round"].textContent = result.matchComplete ? "NEW MATCH" : "NEXT ROUND";
+    this.els["next-round"].hidden = result.matchComplete;
+    if (result.matchComplete) this.els["result-delta"].textContent = `${result.matchWins.player} — ${result.matchWins.dealer} ROUNDS　まもなくメイン画面へ`;
     this.makeConfetti(result.outcome === "win");
     overlay.hidden = false;
     if (result.outcome === "loss") this.shake();

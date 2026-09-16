@@ -5,7 +5,7 @@ export const SPECIALS = [
   { id: "peek", icon: "◉", name: "FUTURE SIGHT", short: "NEXT CARD", description: "次に自分が引くカードを先に確認できる。" },
   { id: "selectReverse", icon: "✦", name: "SELECT REVERSE", short: "SELECT & DROP", description: "相手の手札を公開し、選んだ1枚を捨てる。" },
   { id: "triple", icon: "Ⅲ", name: "TRIPLE BET", short: "BET × 3", description: "このラウンドの勝負額を300チップにする。" },
-  { id: "shuffle", icon: "⇄", name: "SHUFFLE", short: "SWAP HANDS", description: "自分と相手の手札をすべて交換する。" },
+  { id: "shuffle", icon: "⇄", name: "SHUFFLE", short: "SWAP 1 CARD", description: "相手の手札をすべて公開し、自分と相手から1枚ずつ選んで交換する。" },
   { id: "steal", icon: "♜", name: "STEAL", short: "STEAL 50", description: "相手からその場で50チップ奪う。" },
   { id: "extraDraw", icon: "+1", name: "EXTRA DRAW", short: "DRAW & DROP", description: "カードを1枚引いた後、自分の手札から1枚選んで捨てる。" },
   { id: "lock", icon: "⊘", name: "LOCK", short: "SEAL SKILL", description: "相手の次のターンだけ必殺技を封印する。" },

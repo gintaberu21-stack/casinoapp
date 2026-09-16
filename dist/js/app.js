@@ -129,6 +129,20 @@ function bestDiscardId(cards) {
   }).sort((a, b) => b.value - a.value)[0]?.id;
 }
 
+function bestSwap(cards, opponentCards) {
+  const choices = [];
+  cards.forEach((ownCard) => opponentCards.forEach((opponentCard) => {
+    const ownAfter = cards.map((card) => card.id === ownCard.id ? opponentCard : card);
+    const opponentAfter = opponentCards.map((card) => card.id === opponentCard.id ? ownCard : card);
+    const ownScore = scoreHand(ownAfter).total;
+    const opponentScore = scoreHand(opponentAfter).total;
+    const ownValue = ownScore <= 21 ? ownScore : -30 - ownScore;
+    const opponentValue = opponentScore > 21 ? 28 : -opponentScore;
+    choices.push({ actorCardId: ownCard.id, opponentCardId: opponentCard.id, value: ownValue + opponentValue * 0.45 });
+  }));
+  return choices.sort((a, b) => b.value - a.value)[0];
+}
+
 async function useSpecial(id) {
   if (busy || game.phase !== "playing" || game.actor === "dealer" && game.mode === "solo") return;
   await executeSpecial(id, false);
@@ -142,9 +156,18 @@ async function executeSpecial(id, isAi) {
   busy = true;
   ui.setActions(false, actor);
   let cardId;
+  let actorCardId;
+  let opponentCardId;
   await ui.showSpecial(special, actor);
   if (id === "selectReverse") cardId = isAi ? highestCardId(game[opponent]) : await ui.chooseOpponentCard(game[opponent]);
-  const result = game.applySpecial(actor, id, { cardId });
+  if (id === "shuffle") {
+    if (isAi) ({ actorCardId, opponentCardId } = bestSwap(game[actor], game[opponent]));
+    else {
+      opponentCardId = await ui.chooseCards(game[opponent], "相手の全手札から交換する1枚を選択");
+      actorCardId = await ui.chooseCards(game[actor], "自分から渡す1枚を選択");
+    }
+  }
+  const result = game.applySpecial(actor, id, { cardId, actorCardId, opponentCardId });
   if (!result.ok) { ui.toast(result.reason); busy = false; await enterTurn(false); return; }
 
   if (id === "extraDraw") {
@@ -159,7 +182,7 @@ async function executeSpecial(id, isAi) {
     double: "勝負額が200チップに上昇!", triple: "勝負額が300チップに上昇!",
     reverse: "相手の最後のカードを引き直した!", shield: "敗北時の損失を100軽減!",
     peek: "次に自分が引くカードを確保!", selectReverse: "選んだカードを捨てた!",
-    shuffle: "両者の手札をすべて交換!", steal: `${result.amount}チップを奪取!`,
+    shuffle: "選んだカードを1枚ずつ交換!", steal: `${result.amount}チップを奪取!`,
     extraDraw: "1枚引いて、選んだ手札を捨てた!", lock: "相手の次ターンの必殺技を封印!",
   };
   ui.toast(messages[id]);
@@ -181,11 +204,15 @@ async function finishRound() {
   ui.updateScores(game);
   await wait(350);
   ui.showResult(result, game);
+  if (result.matchComplete) {
+    await wait(3200);
+    returnToLobby();
+    return;
+  }
   busy = false;
 }
 
 async function nextRound() {
-  if (game.matchRound >= 3) game.startMatch();
   await beginRound();
 }
 

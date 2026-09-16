@@ -103,7 +103,20 @@ export class CasinoDuelGame {
       const index = Math.max(0, this[opponent].findIndex((card) => card.id === options.cardId));
       [result.removed] = this[opponent].splice(index, 1);
     }
-    if (id === "shuffle") [this.player, this.dealer] = [this.dealer, this.player];
+    if (id === "shuffle") {
+      const actorIndex = this[actor].findIndex((card) => card.id === options.actorCardId);
+      const opponentIndex = this[opponent].findIndex((card) => card.id === options.opponentCardId);
+      if (actorIndex < 0 || opponentIndex < 0) {
+        this.skills[actor].push(skill);
+        return { ok: false, reason: "交換するカードを選んでください" };
+      }
+      const actorCard = this[actor][actorIndex];
+      const opponentCard = this[opponent][opponentIndex];
+      this[actor][actorIndex] = opponentCard;
+      this[opponent][opponentIndex] = actorCard;
+      result.given = actorCard;
+      result.taken = opponentCard;
+    }
     if (id === "steal") {
       const amount = Math.min(50, this.chips[opponent]);
       this.chips[opponent] -= amount;
@@ -124,16 +137,19 @@ export class CasinoDuelGame {
   }
 
   chooseDealerSpecial() {
-    if (this.locked.dealer || !this.skills.dealer.length || Math.random() > 0.42) return null;
+    const useChance = { easy: 0.58, normal: 0.76, hard: 0.92 }[this.difficulty] ?? 0.76;
+    if (this.locked.dealer || !this.skills.dealer.length || Math.random() > useChance) return null;
     const playerScore = this.score("player");
     const dealerScore = this.score("dealer");
     const preferred = [
-      dealerScore <= 15 && this.skills.dealer.find(({ id }) => id === "extraDraw"),
       playerScore >= 18 && this.skills.dealer.find(({ id }) => id === "selectReverse"),
       playerScore >= 18 && this.skills.dealer.find(({ id }) => id === "reverse"),
-      dealerScore + 3 < playerScore && this.skills.dealer.find(({ id }) => id === "shuffle"),
-      this.skills.dealer.find(({ id }) => id === "steal"),
       this.skills.dealer.find(({ id }) => id === "lock"),
+      this.skills.dealer.find(({ id }) => id === "steal"),
+      this.skills.dealer.find(({ id }) => id === "shuffle"),
+      this.skills.dealer.find(({ id }) => id === "selectReverse"),
+      this.skills.dealer.find(({ id }) => id === "reverse"),
+      dealerScore <= 15 && this.skills.dealer.find(({ id }) => id === "extraDraw"),
       this.skills.dealer.find(({ id }) => id === "shield"),
       dealerScore >= 17 && this.skills.dealer.find(({ id }) => ["double", "triple"].includes(id)),
       this.skills.dealer.find(({ id }) => id === "peek"),
