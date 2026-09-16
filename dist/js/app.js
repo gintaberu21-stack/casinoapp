@@ -158,7 +158,7 @@ async function executeSpecial(id, isAi) {
   let cardId;
   let actorCardId;
   let opponentCardId;
-  await ui.showSpecial(special, actor);
+  await ui.showSpecial(special, actor, isAi);
   if (id === "selectReverse") cardId = isAi ? highestCardId(game[opponent]) : await ui.chooseOpponentCard(game[opponent]);
   if (id === "shuffle") {
     if (isAi) ({ actorCardId, opponentCardId } = bestSwap(game[actor], game[opponent]));
@@ -166,6 +166,12 @@ async function executeSpecial(id, isAi) {
       opponentCardId = await ui.chooseCards(game[opponent], "相手の全手札から交換する1枚を選択");
       actorCardId = await ui.chooseCards(game[actor], "自分から渡す1枚を選択");
     }
+  }
+  if (isAi && id === "reverse") cardId = game[opponent].at(-1)?.id;
+  if (isAi && ["reverse", "selectReverse", "shuffle"].includes(id)) {
+    const targetCardId = id === "shuffle" ? opponentCardId : cardId;
+    const message = id === "shuffle" ? "光っているカードをCPUが交換します" : id === "selectReverse" ? "光っているカードが捨てられます" : "光っているカードが引き直されます";
+    await ui.highlightCard(opponent, targetCardId, message);
   }
   const result = game.applySpecial(actor, id, { cardId, actorCardId, opponentCardId });
   if (!result.ok) { ui.toast(result.reason); busy = false; await enterTurn(false); return; }

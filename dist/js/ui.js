@@ -167,14 +167,27 @@ export class GameUI {
     this.els["dealer-kicker"].textContent = dealerTurn && document.body.dataset.mode === "duo" ? "PLAYER 2" : "THE HOUSE";
   }
 
-  async showSpecial(special, actor) {
+  async showSpecial(special, actor, isAi = false) {
+    this.els["special-focus-actor"].textContent = isAi ? "CPUが必殺技を発動" : actor === "player" ? "PLAYER SPECIAL" : "PLAYER 2 SPECIAL";
     this.els["special-focus-icon"].textContent = special.icon;
     this.els["special-focus-title"].textContent = special.name;
-    this.els["special-focus-effect"].textContent = `${actor === "player" ? "PLAYER" : "DEALER"} — ${special.short}`;
+    this.els["special-focus-effect"].textContent = special.short;
+    this.els["special-focus-description"].textContent = special.description;
+    this.els["special-overlay"].classList.toggle("is-cpu-special", isAi);
     this.els["special-overlay"].hidden = false;
     this.cue("special");
-    await wait(1300);
+    await wait(isAi ? 2400 : 1900);
     this.els["special-overlay"].hidden = true;
+  }
+
+  async highlightCard(target, cardId, message) {
+    const card = this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`);
+    if (!card) return;
+    card.classList.add("is-targeted");
+    if (message) this.toast(message);
+    this.cue("special");
+    await wait(1000);
+    card.classList.remove("is-targeted");
   }
 
   async runCoinToss(mode) {
@@ -235,7 +248,12 @@ export class GameUI {
       return button;
     }));
     this.els["select-card-overlay"].hidden = false;
-    const cardId = await new Promise((resolve) => list.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => resolve(button.dataset.cardId), { once: true })));
+    const cardId = await new Promise((resolve) => list.querySelectorAll("button").forEach((button) => button.addEventListener("click", async () => {
+      list.querySelectorAll("button").forEach((item) => { item.disabled = true; });
+      button.classList.add("is-selected");
+      await wait(1000);
+      resolve(button.dataset.cardId);
+    }, { once: true })));
     this.els["select-card-overlay"].hidden = true;
     return cardId;
   }
