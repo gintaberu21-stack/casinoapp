@@ -158,6 +158,7 @@ async function executeSpecial(id, isAi) {
   let cardId;
   let actorCardId;
   let opponentCardId;
+  const chipsBefore = { ...game.chips };
   await ui.showSpecial(special, actor, isAi);
   if (id === "selectReverse") cardId = isAi ? highestCardId(game[opponent]) : await ui.chooseOpponentCard(game[opponent]);
   if (id === "shuffle") {
@@ -167,11 +168,12 @@ async function executeSpecial(id, isAi) {
       actorCardId = await ui.chooseCards(game[actor], "自分から渡す1枚を選択");
     }
   }
-  if (isAi && id === "reverse") cardId = game[opponent].at(-1)?.id;
-  if (isAi && ["reverse", "selectReverse", "shuffle"].includes(id)) {
-    const targetCardId = id === "shuffle" ? opponentCardId : cardId;
-    const message = id === "shuffle" ? "光っているカードをCPUが交換します" : id === "selectReverse" ? "光っているカードが捨てられます" : "光っているカードが引き直されます";
-    await ui.highlightCard(opponent, targetCardId, message);
+  if (id === "reverse") cardId = game[opponent].at(-1)?.id;
+  if (["reverse", "selectReverse", "shuffle"].includes(id)) {
+    const targets = id === "shuffle" ? [{ target: actor, cardId: actorCardId }, { target: opponent, cardId: opponentCardId }] : [{ target: opponent, cardId }];
+    const subject = isAi ? "CPU" : "必殺技";
+    const message = id === "shuffle" ? `光っている2枚を${subject}が交換します` : id === "selectReverse" ? "光っているカードが捨てられます" : "光っているカードが引き直されます";
+    await ui.highlightCards(targets, message);
   }
   const result = game.applySpecial(actor, id, { cardId, actorCardId, opponentCardId });
   if (!result.ok) { ui.toast(result.reason); busy = false; await enterTurn(false); return; }
@@ -181,8 +183,12 @@ async function executeSpecial(id, isAi) {
     const discardId = isAi ? bestDiscardId(game[actor]) : await ui.chooseCards(game[actor], "捨てる手札を選択");
     result.discarded = game.discardCard(actor, discardId);
     ui.renderHands(game);
-  } else ui.renderHands(game);
-  ui.updateScores(game);
+  } else {
+    ui.renderHands(game);
+    if (id === "shuffle") await ui.animateCardChanges([{ target: actor, cardId: result.taken.id }, { target: opponent, cardId: result.given.id }]);
+    if (id === "reverse") await ui.animateCardChanges([{ target: opponent, cardId: result.added.id }]);
+  }
+  await ui.animateChipChange(game, chipsBefore);
   ui.renderSpecials(game);
   const messages = {
     double: "勝負額が200チップに上昇!", triple: "勝負額が300チップに上昇!",
@@ -205,9 +211,10 @@ async function finishRound() {
   busy = true;
   ui.setActions(false, game.actor);
   await ui.revealDealer(game);
+  const chipsBefore = { ...game.chips };
   const result = game.settle();
   ui.renderHands(game);
-  ui.updateScores(game);
+  await ui.animateChipChange(game, chipsBefore);
   await wait(350);
   ui.showResult(result, game);
   if (result.matchComplete) {

@@ -115,6 +115,40 @@ export class GameUI {
     this.els["wager-count"].textContent = game.wager;
   }
 
+  async animateChipChange(game, before) {
+    const changes = ["player", "dealer"].map((actor) => ({ actor, from: before[actor], to: game.chips[actor] })).filter(({ from, to }) => from !== to);
+    if (!changes.length) { this.updateScores(game); return; }
+    this.updateScores(game);
+    const nodesFor = (actor) => actor === "player" ? [this.els["chip-count"], this.els["player-chip-count"]] : [this.els["dealer-chip-count"]];
+    changes.forEach(({ actor, from, to }) => {
+      const nodes = nodesFor(actor);
+      nodes.forEach((node) => {
+        node.textContent = from;
+        node.classList.add(to > from ? "chip-gain" : "chip-loss");
+      });
+      const anchor = nodes.at(-1);
+      const rect = anchor.getBoundingClientRect();
+      const delta = document.createElement("strong");
+      delta.className = `chip-delta ${to > from ? "is-gain" : "is-loss"}`;
+      delta.textContent = `${to > from ? "+" : ""}${to - from} CHIP`;
+      delta.style.setProperty("--chip-x", `${rect.left + rect.width / 2}px`);
+      delta.style.setProperty("--chip-y", `${rect.top}px`);
+      document.body.append(delta);
+      setTimeout(() => delta.remove(), 1500);
+    });
+    this.cue("chip");
+    const steps = 18;
+    for (let step = 1; step <= steps; step += 1) {
+      changes.forEach(({ actor, from, to }) => {
+        const value = Math.round(from + (to - from) * step / steps);
+        nodesFor(actor).forEach((node) => { node.textContent = value; });
+      });
+      await wait(55);
+    }
+    await wait(250);
+    changes.forEach(({ actor }) => nodesFor(actor).forEach((node) => node.classList.remove("chip-gain", "chip-loss")));
+  }
+
   singleCardValue(card) {
     if (card.rank === "A") return 11;
     if (["J", "Q", "K"].includes(card.rank)) return 10;
@@ -181,13 +215,26 @@ export class GameUI {
   }
 
   async highlightCard(target, cardId, message) {
-    const card = this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`);
-    if (!card) return;
-    card.classList.add("is-targeted");
+    return this.highlightCards([{ target, cardId }], message);
+  }
+
+  async highlightCards(targets, message) {
+    const cards = targets.map(({ target, cardId }) => this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`)).filter(Boolean);
+    if (!cards.length) return;
+    cards.forEach((card) => card.classList.add("is-targeted"));
     if (message) this.toast(message);
     this.cue("special");
     await wait(1000);
-    card.classList.remove("is-targeted");
+    cards.forEach((card) => card.classList.remove("is-targeted"));
+  }
+
+  async animateCardChanges(changes) {
+    const cards = changes.map(({ target, cardId }) => this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`)).filter(Boolean);
+    if (!cards.length) return;
+    cards.forEach((card) => card.classList.add("is-changing-in"));
+    this.cue("deal");
+    await wait(850);
+    cards.forEach((card) => card.classList.remove("is-changing-in"));
   }
 
   async runCoinToss(mode) {
