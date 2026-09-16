@@ -49,6 +49,7 @@ export class GameUI {
     this.els["result-overlay"].className = "result-overlay";
     this.els["next-card-preview"].hidden = true;
     this.els["wager-count"].textContent = game.wager;
+    this.els["round-progress"].textContent = `ROUND ${game.matchRound} / 3`;
     this.updateScores(game);
     this.renderSpecials(game, true);
     this.setActions(false, game.actor);
@@ -62,11 +63,13 @@ export class GameUI {
       this.cue("deal");
       await wait(240);
     }
-    this.els["special-list"].querySelectorAll(".special-card").forEach((card, index) => {
-      card.classList.add("skill-deal-in");
-      card.style.setProperty("--skill-delay", `${index * 120}ms`);
-    });
-    this.els["opponent-arcana"].classList.add("is-dealing");
+    if (game.matchRound === 1) {
+      this.els["special-list"].querySelectorAll(".special-card").forEach((card, index) => {
+        card.classList.add("skill-deal-in");
+        card.style.setProperty("--skill-delay", `${index * 120}ms`);
+      });
+      this.els["opponent-arcana"].classList.add("is-dealing");
+    } else this.els["opponent-arcana"].classList.remove("is-dealing");
     await wait(650);
     this.updateScores(game);
   }
@@ -179,6 +182,8 @@ export class GameUI {
     const coin = this.els["duel-coin"];
     const choice = this.els["coin-choice"];
     overlay.hidden = false;
+    overlay.classList.remove("is-decided");
+    this.els["coin-heading"].textContent = "先攻を決める";
     coin.className = "duel-coin";
     let guess = null;
     if (mode === "solo") {
@@ -199,8 +204,13 @@ export class GameUI {
     const firstActor = mode === "solo" ? (guess === face ? "player" : "dealer") : (face === "front" ? "player" : "dealer");
     const faceLabel = face === "front" ? "表 ♦" : "裏 ♠";
     const actorLabel = firstActor === "player" ? "PLAYER 1" : mode === "duo" ? "PLAYER 2" : "DEALER";
-    this.els["coin-result"].textContent = `${faceLabel} — ${actorLabel}が先攻`;
-    await wait(900);
+    const orderHeading = mode === "solo" ? (firstActor === "player" ? "あなたが先攻" : "あなたは後攻") : `${actorLabel}が先攻`;
+    const secondActor = firstActor === "player" ? (mode === "duo" ? "PLAYER 2" : "DEALER") : "PLAYER 1";
+    choice.hidden = true;
+    overlay.classList.add("is-decided");
+    this.els["coin-heading"].textContent = orderHeading;
+    this.els["coin-result"].textContent = `${faceLabel} ／ ${actorLabel}が先攻・${secondActor}が後攻`;
+    await wait(1500);
     overlay.hidden = true;
     return firstActor;
   }
@@ -214,7 +224,8 @@ export class GameUI {
     this.els["handoff-overlay"].hidden = true;
   }
 
-  async chooseOpponentCard(cards) {
+  async chooseCards(cards, heading = "捨てるカードを選択") {
+    this.els["select-card-heading"].textContent = heading;
     const list = this.els["select-card-list"];
     list.replaceChildren(...cards.map((card) => {
       const button = document.createElement("button");
@@ -229,15 +240,25 @@ export class GameUI {
     return cardId;
   }
 
+  chooseOpponentCard(cards) {
+    return this.chooseCards(cards, "相手から捨てるカードを選択");
+  }
+
   showResult(result, game) {
     const overlay = this.els["result-overlay"];
     overlay.className = `result-overlay is-${result.outcome}${result.blackjack ? " is-blackjack" : ""}`;
     let title = result.blackjack ? "BLACKJACK!!" : result.outcome === "win" ? "YOU WIN!" : result.outcome === "loss" ? "DEALER WIN" : "PUSH";
     if (game.mode === "duo") title = result.outcome === "win" ? "PLAYER 1 WIN" : result.outcome === "loss" ? "PLAYER 2 WIN" : "PUSH";
-    this.els["result-kicker"].textContent = result.shielded ? "SHIELD REDUCED THE LOSS" : result.blackjack ? "PERFECT TWENTY-ONE" : "ROUND RESULT";
+    if (result.matchComplete) {
+      const playerWon = result.matchWins.player > result.matchWins.dealer;
+      const dealerWon = result.matchWins.dealer > result.matchWins.player;
+      title = playerWon ? (game.mode === "duo" ? "PLAYER 1 MATCH WIN" : "MATCH WIN!") : dealerWon ? (game.mode === "duo" ? "PLAYER 2 MATCH WIN" : "DEALER MATCH WIN") : "MATCH DRAW";
+    }
+    this.els["result-kicker"].textContent = result.matchComplete ? `FINAL SCORE • ${result.matchWins.player} - ${result.matchWins.dealer}` : result.shielded ? `ROUND ${result.round} / 3 • SHIELD` : `ROUND ${result.round} / 3`;
     this.els["result-title"].textContent = title;
     this.els["result-score"].textContent = `${result.player > 21 ? "BUST" : result.player} — ${result.dealer > 21 ? "BUST" : result.dealer}`;
-    this.els["result-delta"].textContent = result.delta === 0 ? "NO CHANGE" : `${result.delta > 0 ? "+" : ""}${result.delta} CHIP`;
+    this.els["result-delta"].textContent = result.matchComplete ? `${result.matchWins.player} — ${result.matchWins.dealer} ROUNDS` : result.delta === 0 ? "NO CHANGE" : `${result.delta > 0 ? "+" : ""}${result.delta} CHIP`;
+    this.els["next-round"].textContent = result.matchComplete ? "NEW MATCH" : "NEXT ROUND";
     this.makeConfetti(result.outcome === "win");
     overlay.hidden = false;
     if (result.outcome === "loss") this.shake();

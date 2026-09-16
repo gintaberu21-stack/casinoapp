@@ -26,7 +26,7 @@
           <button class="difficulty-preview" id="difficulty-open" type="button"><span>DEALER</span><strong id="difficulty-label">NORMAL</strong><em>変更</em></button>
           <button class="start-button" id="game-start" type="button"><span>GAME START</span><small>テーブルへ</small></button>
           <nav class="help-nav" aria-label="遊び方"><button type="button" data-dialog="card-help">カードの説明</button><button type="button" data-dialog="special-help">必殺技カード</button></nav>
-          <p class="quick-rule">21を超えずに、ディーラーより21へ近づこう。</p>
+          <p class="quick-rule">全3ラウンド。21を超えずに、相手より21へ近づこう。</p>
         </div>
       </section>
 
@@ -42,7 +42,7 @@
             <div class="hand-heading"><div><span class="role-kicker" id="dealer-kicker">THE HOUSE</span><h2>DEALER</h2><small class="bankroll">CHIP <b id="dealer-chip-count">500</b></small></div><output class="score-badge is-hidden" id="dealer-score">?</output></div>
             <div class="card-hand" id="dealer-hand"></div>
           </section>
-          <div class="table-center"><div class="deck-stack" aria-label="山札"><span></span><span></span><span></span><div class="next-card-preview" id="next-card-preview" hidden></div></div><div class="round-status" id="round-status" aria-live="polite">YOUR TURN</div><div class="wager"><small>BET</small><strong id="wager-count">100</strong></div></div>
+          <div class="table-center"><div class="deck-stack" aria-label="山札"><span></span><span></span><span></span><div class="next-card-preview" id="next-card-preview" hidden></div></div><div class="round-progress" id="round-progress">ROUND 1 / 3</div><div class="round-status" id="round-status" aria-live="polite">YOUR TURN</div><div class="wager"><small>BET</small><strong id="wager-count">100</strong></div></div>
           <section class="hand-zone player-zone" aria-label="プレイヤーの手札">
             <div class="card-hand" id="player-hand"></div>
             <div class="hand-heading player-heading"><div><span class="role-kicker">CHALLENGER</span><h2>PLAYER</h2><small class="bankroll">CHIP <b id="player-chip-count">500</b></small></div><output class="score-badge" id="player-score">0</output></div>
@@ -55,11 +55,11 @@
 
     <dialog class="info-dialog" id="difficulty-dialog"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">SELECT DEALER</p><h2>ディーラーの強さ</h2><div class="difficulty-list"><button type="button" data-difficulty="easy"><span>EASY</span><small>15以上で止まる、初めての人向け</small></button><button class="is-selected" type="button" data-difficulty="normal"><span>NORMAL</span><small>基本ルール通り17以上で止まる</small></button><button type="button" data-difficulty="hard"><span>HARD</span><small>あなたの点数を見て強気に追いかける</small></button></div></div></dialog>
     <dialog class="info-dialog" id="card-help"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">HOW TO PLAY</p><h2>カードの数え方</h2><div class="rule-grid"><div><b class="rank-sample red">A</b><p><strong>1 または 11</strong><span>21を超えない有利な方で数えます。</span></p></div><div><b class="rank-sample">2–10</b><p><strong>数字のまま</strong><span>書かれている数字が得点です。</span></p></div><div><b class="rank-sample red">JQK</b><p><strong>すべて 10</strong><span>絵札はどれも10点です。</span></p></div></div><p class="dialog-note">21を超えるとBUSTで負け。HITで引く、STANDで勝負します。</p></div></dialog>
-    <dialog class="info-dialog" id="special-help"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">SECRET WEAPONS</p><h2>必殺技カード</h2><div class="skill-guide" id="skill-guide"></div><p class="dialog-note">10枚の山から重複なしで3枚ずつ配ります。使ったカードは消え、必殺技の使用も1行動としてターンが交代します。</p></div></dialog>
+    <dialog class="info-dialog" id="special-help"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">SECRET WEAPONS</p><h2>必殺技カード</h2><div class="skill-guide" id="skill-guide"></div><p class="dialog-note">10枚の山から重複なしで3枚ずつ配ります。3ラウンド中は同じ手札を引き継ぎ、使ったカードは復活しません。必殺技の使用も1行動としてターンが交代します。</p></div></dialog>
 
     <div class="handoff-overlay" id="handoff-overlay" hidden><div class="handoff-card"><span class="handoff-suit">♦</span><p>端末を渡してください</p><h2>DEALER TURN</h2><small>プレイヤーに手札を見られないように交代</small><button id="dealer-ready" type="button">ディーラー準備OK</button></div></div>
-    <div class="coin-overlay" id="coin-overlay" hidden><div class="coin-panel"><p>FIRST MOVE</p><h2>先攻を決める</h2><div class="duel-coin" id="duel-coin"><span class="coin-front">♦</span><span class="coin-back">♠</span></div><div class="coin-choice" id="coin-choice"><button type="button" data-coin="front">表 ♦</button><button type="button" data-coin="back">裏 ♠</button></div><strong id="coin-result">表か裏を選んでください</strong></div></div>
-    <div class="select-card-overlay" id="select-card-overlay" hidden><div class="select-card-panel"><p>SELECT REVERSE</p><h2>捨てるカードを選択</h2><div class="select-card-list" id="select-card-list"></div></div></div>
+    <div class="coin-overlay" id="coin-overlay" hidden><div class="coin-panel"><p>FIRST MOVE</p><h2 id="coin-heading">先攻を決める</h2><div class="duel-coin" id="duel-coin"><span class="coin-front">♦</span><span class="coin-back">♠</span></div><div class="coin-choice" id="coin-choice"><button type="button" data-coin="front">表 ♦</button><button type="button" data-coin="back">裏 ♠</button></div><strong id="coin-result">表か裏を選んでください</strong></div></div>
+    <div class="select-card-overlay" id="select-card-overlay" hidden><div class="select-card-panel"><p>CARD SELECT</p><h2 id="select-card-heading">捨てるカードを選択</h2><div class="select-card-list" id="select-card-list"></div></div></div>
     <div class="special-overlay" id="special-overlay" hidden aria-live="assertive"><div class="special-burst"></div><div class="special-focus"><p>★ SPECIAL ★</p><span id="special-focus-icon">↯</span><h2 id="special-focus-title">DOUBLE</h2><small id="special-focus-effect">BET × 2</small></div></div>
     <div class="result-overlay" id="result-overlay" hidden aria-live="assertive"><div class="confetti" id="confetti"></div><div class="result-panel"><p id="result-kicker">ROUND RESULT</p><h2 id="result-title">YOU WIN!</h2><div class="result-score" id="result-score">20 — 18</div><strong id="result-delta">+100 CHIP</strong><div class="result-actions"><button id="next-round" type="button">NEXT ROUND</button><button id="result-lobby" type="button">LOBBY</button></div></div></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

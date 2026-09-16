@@ -1,6 +1,7 @@
 import { CasinoDuelGame } from "./game.js";
 import { getSpecial } from "./skills.js";
 import { GameUI } from "./ui.js";
+import { scoreHand } from "./deck.js";
 
 const game = new CasinoDuelGame();
 const ui = new GameUI();
@@ -31,6 +32,7 @@ function setDifficulty(difficulty) {
 async function startGame() {
   if (busy) return;
   game.configure({ mode: selectedMode, difficulty: selectedDifficulty });
+  game.startMatch();
   document.body.dataset.mode = selectedMode;
   ui.transitionTo("game");
   await wait(430);
@@ -119,6 +121,14 @@ function highestCardId(cards) {
   return [...cards].sort((a, b) => (values[b.rank] || Number(b.rank)) - (values[a.rank] || Number(a.rank)))[0]?.id;
 }
 
+function bestDiscardId(cards) {
+  return cards.map((card) => {
+    const remaining = cards.filter(({ id }) => id !== card.id);
+    const total = scoreHand(remaining).total;
+    return { id: card.id, value: total <= 21 ? total : -total };
+  }).sort((a, b) => b.value - a.value)[0]?.id;
+}
+
 async function useSpecial(id) {
   if (busy || game.phase !== "playing" || game.actor === "dealer" && game.mode === "solo") return;
   await executeSpecial(id, false);
@@ -137,8 +147,12 @@ async function executeSpecial(id, isAi) {
   const result = game.applySpecial(actor, id, { cardId });
   if (!result.ok) { ui.toast(result.reason); busy = false; await enterTurn(false); return; }
 
-  if (id === "extraDraw") await ui.addCard(game, actor, result.added);
-  else ui.renderHands(game);
+  if (id === "extraDraw") {
+    await ui.addCard(game, actor, result.added);
+    const discardId = isAi ? bestDiscardId(game[actor]) : await ui.chooseCards(game[actor], "捨てる手札を選択");
+    result.discarded = game.discardCard(actor, discardId);
+    ui.renderHands(game);
+  } else ui.renderHands(game);
   ui.updateScores(game);
   ui.renderSpecials(game);
   const messages = {
@@ -146,7 +160,7 @@ async function executeSpecial(id, isAi) {
     reverse: "相手の最後のカードを引き直した!", shield: "敗北時の損失を100軽減!",
     peek: "次に自分が引くカードを確保!", selectReverse: "選んだカードを捨てた!",
     shuffle: "両者の手札をすべて交換!", steal: `${result.amount}チップを奪取!`,
-    extraDraw: "追加ドロー成功 — もう一度行動!", lock: "相手の次ターンの必殺技を封印!",
+    extraDraw: "1枚引いて、選んだ手札を捨てた!", lock: "相手の次ターンの必殺技を封印!",
   };
   ui.toast(messages[id]);
   clearTurnLock(actor);
@@ -170,6 +184,11 @@ async function finishRound() {
   busy = false;
 }
 
+async function nextRound() {
+  if (game.matchRound >= 3) game.startMatch();
+  await beginRound();
+}
+
 function returnToLobby() {
   busy = false;
   game.phase = "idle";
@@ -189,7 +208,7 @@ document.querySelectorAll("[data-mode]").forEach((button) => button.addEventList
 ui.els["game-start"].addEventListener("click", startGame);
 ui.els["hit-button"].addEventListener("click", () => performHit(false));
 ui.els["stand-button"].addEventListener("click", () => performStand(false));
-ui.els["next-round"].addEventListener("click", beginRound);
+ui.els["next-round"].addEventListener("click", nextRound);
 ui.els["back-lobby"].addEventListener("click", returnToLobby);
 ui.els["result-lobby"].addEventListener("click", returnToLobby);
 

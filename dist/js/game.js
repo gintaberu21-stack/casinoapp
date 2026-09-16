@@ -9,6 +9,9 @@ export class CasinoDuelGame {
     this.difficulty = "normal";
     this.chips = { player: 500, dealer: 500 };
     this.baseWager = 100;
+    this.skills = { player: [], dealer: [] };
+    this.matchRound = 0;
+    this.matchWins = { player: 0, dealer: 0 };
     this.resetRound();
   }
 
@@ -21,7 +24,6 @@ export class CasinoDuelGame {
     this.deck = [];
     this.player = [];
     this.dealer = [];
-    this.skills = { player: [], dealer: [] };
     this.reservedCard = { player: null, dealer: null };
     this.stood = { player: false, dealer: false };
     this.lossShield = { player: false, dealer: false };
@@ -32,11 +34,17 @@ export class CasinoDuelGame {
     this.dealerRevealed = false;
   }
 
-  startRound(firstActor) {
-    if (this.chips.player < this.baseWager || this.chips.dealer < this.baseWager) this.chips = { player: 500, dealer: 500 };
-    this.resetRound();
-    this.deck = createDeck();
+  startMatch() {
+    this.chips = { player: 500, dealer: 500 };
     this.skills = dealSpecials();
+    this.matchRound = 0;
+    this.matchWins = { player: 0, dealer: 0 };
+  }
+
+  startRound(firstActor) {
+    this.resetRound();
+    this.matchRound += 1;
+    this.deck = createDeck();
     this.actor = firstActor;
     this.phase = "dealing";
     this.player.push(this.drawCard());
@@ -104,10 +112,15 @@ export class CasinoDuelGame {
     }
     if (id === "extraDraw") {
       result.added = this.hit(actor);
-      result.keepTurn = true;
     }
     if (id === "lock") this.locked[opponent] = true;
     return result;
+  }
+
+  discardCard(actor, cardId) {
+    const index = this[actor].findIndex((card) => card.id === cardId);
+    if (index < 0) return null;
+    return this[actor].splice(index, 1)[0];
   }
 
   chooseDealerSpecial() {
@@ -158,6 +171,14 @@ export class CasinoDuelGame {
     this.chips.dealer -= delta;
     this.phase = "settled";
     this.dealerRevealed = true;
-    return { outcome, blackjack, player, dealer, delta, shielded: Boolean(loser && this.lossShield[loser]) };
+    if (outcome === "win") this.matchWins.player += 1;
+    if (outcome === "loss") this.matchWins.dealer += 1;
+    return {
+      outcome, blackjack, player, dealer, delta,
+      shielded: Boolean(loser && this.lossShield[loser]),
+      round: this.matchRound,
+      matchWins: { ...this.matchWins },
+      matchComplete: this.matchRound >= 3,
+    };
   }
 }
