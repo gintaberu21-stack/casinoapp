@@ -3,11 +3,18 @@ import { dealSpecials } from "./skills.js";
 
 const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
 
+/** 1試合のラウンド数。 */
+export const MATCH_ROUNDS = 5;
+/** 開始時の持ちチップ。 */
+export const STARTING_CHIPS = 500;
+/** ベットの最小単位。 */
+export const BET_STEP = 50;
+
 export class CasinoDuelGame {
   constructor() {
     this.mode = "solo";
     this.difficulty = "normal";
-    this.chips = { player: 500, dealer: 500 };
+    this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
     this.baseWager = 100;
     this.skills = { player: [], dealer: [] };
     this.matchRound = 0;
@@ -26,6 +33,7 @@ export class CasinoDuelGame {
     this.dealer = [];
     this.reservedCard = { player: null, dealer: null };
     this.stood = { player: false, dealer: false };
+    this.autoStood = { player: false, dealer: false };
     this.lossShield = { player: false, dealer: false };
     this.locked = { player: false, dealer: false };
     this.wager = this.baseWager;
@@ -35,10 +43,31 @@ export class CasinoDuelGame {
   }
 
   startMatch() {
-    this.chips = { player: 500, dealer: 500 };
+    this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
     this.skills = dealSpecials();
     this.matchRound = 0;
     this.matchWins = { player: 0, dealer: 0 };
+    this.baseWager = 100;
+  }
+
+  /** そのラウンドに賭けられる上限。相手が払えない額は賭けられない。 */
+  maxWager() {
+    return Math.max(BET_STEP, Math.min(this.chips.player, this.chips.dealer));
+  }
+
+  /** ベット額を決める。下限はBET_STEP、上限は双方の残高。 */
+  setWager(amount) {
+    const limit = this.maxWager();
+    const stepped = Math.round(amount / BET_STEP) * BET_STEP;
+    this.baseWager = Math.min(limit, Math.max(BET_STEP, stepped));
+    this.wager = this.baseWager;
+    return this.baseWager;
+  }
+
+  /** 賭け額を倍にする必殺技用。相手が払えない分までは増やさない。 */
+  multiplyWager(factor) {
+    this.wager = Math.min(this.maxWager(), this.wager * factor);
+    return this.wager;
   }
 
   startRound(firstActor) {
@@ -73,6 +102,22 @@ export class CasinoDuelGame {
     return scoreHand(this[actor]).total;
   }
 
+  /**
+   * 21以上になった人はそれ以上引けないので自動でSTAND扱いにする。
+   * 必殺技でカードを減らされて21未満に戻ったら、また行動できるようにする。
+   * 自分の意思で押したSTANDは解除しない。
+   */
+  refreshAutoStand() {
+    ["player", "dealer"].forEach((actor) => {
+      if (this.score(actor) >= 21) {
+        if (!this.stood[actor]) { this.stood[actor] = true; this.autoStood[actor] = true; }
+      } else if (this.autoStood[actor]) {
+        this.stood[actor] = false;
+        this.autoStood[actor] = false;
+      }
+    });
+  }
+
   switchActor() {
     this.actor = opponentOf(this.actor);
     return this.actor;
@@ -89,16 +134,12 @@ export class CasinoDuelGame {
     const skill = this.removeSkill(actor, id);
     if (!skill) return { ok: false, reason: "そのカードは持っていません" };
     const opponent = opponentOf(actor);
-    const result = { ok: true, skill, actor, opponent, keepTurn: false };
+    const result = { ok: true, skill, actor, opponent };
 
-    if (id === "double") this.wager = Math.max(this.wager, 200);
-    if (id === "triple") this.wager = 300;
+    if (id === "double") result.wager = this.multiplyWager(2);
+    if (id === "triple") result.wager = this.multiplyWager(3);
     if (id === "shield") this.lossShield[actor] = true;
     if (id === "peek") this.reservedCard[actor] = this.drawCard();
-    if (id === "reverse") {
-      result.removed = this[opponent].pop();
-      result.added = this.hit(opponent);
-    }
     if (id === "selectReverse") {
       const index = Math.max(0, this[opponent].findIndex((card) => card.id === options.cardId));
       [result.removed] = this[opponent].splice(index, 1);
@@ -116,12 +157,6 @@ export class CasinoDuelGame {
       this[opponent][opponentIndex] = actorCard;
       result.given = actorCard;
       result.taken = opponentCard;
-    }
-    if (id === "steal") {
-      const amount = Math.min(50, this.chips[opponent]);
-      this.chips[opponent] -= amount;
-      this.chips[actor] += amount;
-      result.amount = amount;
     }
     if (id === "extraDraw") {
       result.added = this.hit(actor);
@@ -143,12 +178,9 @@ export class CasinoDuelGame {
     const dealerScore = this.score("dealer");
     const preferred = [
       playerScore >= 18 && this.skills.dealer.find(({ id }) => id === "selectReverse"),
-      playerScore >= 18 && this.skills.dealer.find(({ id }) => id === "reverse"),
       this.skills.dealer.find(({ id }) => id === "lock"),
-      this.skills.dealer.find(({ id }) => id === "steal"),
       this.skills.dealer.find(({ id }) => id === "shuffle"),
       this.skills.dealer.find(({ id }) => id === "selectReverse"),
-      this.skills.dealer.find(({ id }) => id === "reverse"),
       dealerScore <= 15 && this.skills.dealer.find(({ id }) => id === "extraDraw"),
       this.skills.dealer.find(({ id }) => id === "shield"),
       dealerScore >= 17 && this.skills.dealer.find(({ id }) => ["double", "triple"].includes(id)),
@@ -189,12 +221,20 @@ export class CasinoDuelGame {
     this.dealerRevealed = true;
     if (outcome === "win") this.matchWins.player += 1;
     if (outcome === "loss") this.matchWins.dealer += 1;
+    // チップが尽きたらその時点で敗北。残っていれば規定ラウンドまで続ける。
+    const bankrupt = this.chips.player <= 0 ? "player" : this.chips.dealer <= 0 ? "dealer" : null;
+    const matchComplete = Boolean(bankrupt) || this.matchRound >= MATCH_ROUNDS;
     return {
-      outcome, blackjack, player, dealer, delta,
+      outcome, blackjack, player, dealer, delta, bankrupt, matchComplete,
       shielded: Boolean(loser && this.lossShield[loser]),
+      wager: this.wager,
       round: this.matchRound,
       matchWins: { ...this.matchWins },
-      matchComplete: this.matchRound >= 3,
+      chips: { ...this.chips },
+      // 勝敗はラウンド数ではなく最終的なチップの多さで決まる。
+      matchOutcome: !matchComplete ? null
+        : this.chips.player > this.chips.dealer ? "win"
+          : this.chips.player < this.chips.dealer ? "loss" : "draw",
     };
   }
 }

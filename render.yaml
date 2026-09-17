@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: casino-duel
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      # 接続文字列はパスワードを含むので、Renderのダッシュボードで直接入力する。
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: casino_duel
+      - key: NODE_VERSION
+        value: "22"

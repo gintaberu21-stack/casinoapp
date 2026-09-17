@@ -1,4 +1,5 @@
 import { SPECIALS } from "./skills.js";
+import { MATCH_ROUNDS, BET_STEP } from "./game.js";
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
@@ -49,7 +50,9 @@ export class GameUI {
     this.els["result-overlay"].className = "result-overlay";
     this.els["next-card-preview"].hidden = true;
     this.els["wager-count"].textContent = game.wager;
-    this.els["round-progress"].textContent = `ROUND ${game.matchRound} / 3`;
+    this.els["round-progress"].textContent = `ROUND ${game.matchRound} / ${MATCH_ROUNDS}`;
+    this.els["rival-chip-label"].textContent = game.mode === "duo" ? "PLAYER 2" : "DEALER";
+    this.els["my-chip-label"].textContent = game.mode === "duo" ? "PLAYER 1" : "YOU";
     this.updateScores(game);
     this.renderSpecials(game, true);
     this.setActions(false, game.actor);
@@ -109,7 +112,6 @@ export class GameUI {
     const dealerValue = visibleDealer ? game.score("dealer") : game.dealer[0] ? this.singleCardValue(game.dealer[0]) : "?";
     this.els["dealer-score"].textContent = dealerValue;
     this.els["dealer-score"].classList.toggle("is-hidden", !visibleDealer);
-    this.els["chip-count"].textContent = game.chips.player;
     this.els["player-chip-count"].textContent = game.chips.player;
     this.els["dealer-chip-count"].textContent = game.chips.dealer;
     this.els["wager-count"].textContent = game.wager;
@@ -119,7 +121,7 @@ export class GameUI {
     const changes = ["player", "dealer"].map((actor) => ({ actor, from: before[actor], to: game.chips[actor] })).filter(({ from, to }) => from !== to);
     if (!changes.length) { this.updateScores(game); return; }
     this.updateScores(game);
-    const nodesFor = (actor) => actor === "player" ? [this.els["chip-count"], this.els["player-chip-count"]] : [this.els["dealer-chip-count"]];
+    const nodesFor = (actor) => [this.els[`${actor}-chip-count`]];
     changes.forEach(({ actor, from, to }) => {
       const nodes = nodesFor(actor);
       nodes.forEach((node) => {
@@ -158,9 +160,10 @@ export class GameUI {
   createSpecialCard(special, disabled = false) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "special-card tarot-card";
+    button.className = `special-card tarot-card is-rank-${special.rank.toLowerCase()}`;
     button.dataset.special = special.id;
-    button.innerHTML = `<span class="tarot-stars">✦ · ✧ · ✦</span><b>${special.icon}</b><span>${special.name}</span><small>${special.short}</small>`;
+    button.dataset.rank = special.rank;
+    button.innerHTML = `<span class="tarot-stars">✦ · ✧ · ✦</span><i class="rank-badge">${special.rank}</i><b>${special.icon}</b><span>${special.name}</span><small>${special.short}</small>`;
     button.disabled = disabled;
     button.addEventListener("click", () => this.onSpecial?.(special.id));
     return button;
@@ -210,21 +213,21 @@ export class GameUI {
     this.els["special-overlay"].classList.toggle("is-cpu-special", isAi);
     this.els["special-overlay"].hidden = false;
     this.cue("special");
-    await wait(isAi ? 2400 : 1900);
+    await wait(isAi ? 2900 : 1900);
     this.els["special-overlay"].hidden = true;
   }
 
-  async highlightCard(target, cardId, message) {
-    return this.highlightCards([{ target, cardId }], message);
+  async highlightCard(target, cardId, message, duration) {
+    return this.highlightCards([{ target, cardId }], message, duration);
   }
 
-  async highlightCards(targets, message) {
+  async highlightCards(targets, message, duration = 1000) {
     const cards = targets.map(({ target, cardId }) => this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`)).filter(Boolean);
     if (!cards.length) return;
     cards.forEach((card) => card.classList.add("is-targeted"));
     if (message) this.toast(message);
-    this.cue("special");
-    await wait(1000);
+    this.cue("target");
+    await wait(duration);
     cards.forEach((card) => card.classList.remove("is-targeted"));
   }
 
@@ -291,6 +294,7 @@ export class GameUI {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.cardId = card.id;
+      button.dataset.cue = "select";
       button.append(this.createCard(card));
       return button;
     }));
@@ -309,26 +313,77 @@ export class GameUI {
     return this.chooseCards(cards, "相手から捨てるカードを選択");
   }
 
+  /** ラウンドごとの表示。勝敗は出さず、いまのお互いのチップだけ見せる。 */
+  showStanding(result, game) {
+    const duo = game.mode === "duo";
+    this.els["standing-kicker"].textContent = `ROUND ${result.round} / ${MATCH_ROUNDS} 終了`;
+    this.els["standing-player-label"].textContent = duo ? "PLAYER 1" : "YOU";
+    this.els["standing-dealer-label"].textContent = duo ? "PLAYER 2" : "DEALER";
+    this.els["standing-player"].textContent = result.chips.player;
+    this.els["standing-dealer"].textContent = result.chips.dealer;
+    const setDelta = (node, value) => {
+      node.textContent = value === 0 ? "±0" : `${value > 0 ? "+" : ""}${value}`;
+      node.className = value > 0 ? "is-gain" : value < 0 ? "is-loss" : "";
+    };
+    setDelta(this.els["standing-player-delta"], result.delta);
+    setDelta(this.els["standing-dealer-delta"], -result.delta);
+    this.els["standing-overlay"].hidden = false;
+  }
+
+  /** 試合の最後だけ出す勝敗画面。勝敗は最終的なチップの多さで決まる。 */
   showResult(result, game) {
     const overlay = this.els["result-overlay"];
-    overlay.className = `result-overlay is-${result.outcome}${result.blackjack ? " is-blackjack" : ""}`;
-    let title = result.blackjack ? "BLACKJACK!!" : result.outcome === "win" ? "YOU WIN!" : result.outcome === "loss" ? "DEALER WIN" : "PUSH";
-    if (game.mode === "duo") title = result.outcome === "win" ? "PLAYER 1 WIN" : result.outcome === "loss" ? "PLAYER 2 WIN" : "PUSH";
-    if (result.matchComplete) {
-      const playerWon = result.matchWins.player > result.matchWins.dealer;
-      const dealerWon = result.matchWins.dealer > result.matchWins.player;
-      title = playerWon ? (game.mode === "duo" ? "PLAYER 1 MATCH WIN" : "MATCH WIN!") : dealerWon ? (game.mode === "duo" ? "PLAYER 2 MATCH WIN" : "DEALER MATCH WIN") : "MATCH DRAW";
-    }
-    this.els["result-kicker"].textContent = result.matchComplete ? `FINAL SCORE • ${result.matchWins.player} - ${result.matchWins.dealer}` : result.shielded ? `ROUND ${result.round} / 3 • SHIELD` : `ROUND ${result.round} / 3`;
+    const mood = result.matchOutcome ?? "draw";
+    const celebrate = mood === "win";
+    const duo = game.mode === "duo";
+    overlay.className = `result-overlay is-${mood} is-final`;
+    const title = duo
+      ? (mood === "win" ? "PLAYER 1 WIN" : mood === "loss" ? "PLAYER 2 WIN" : "PUSH")
+      : (mood === "win" ? "You Win!" : mood === "loss" ? "You lose" : "PUSH");
+    this.els["result-kicker"].textContent = result.bankrupt ? "CHIPS GONE" : `FINAL • ${MATCH_ROUNDS} ROUNDS`;
     this.els["result-title"].textContent = title;
-    this.els["result-score"].textContent = `${result.player > 21 ? "BUST" : result.player} — ${result.dealer > 21 ? "BUST" : result.dealer}`;
-    this.els["result-delta"].textContent = result.matchComplete ? `${result.matchWins.player} — ${result.matchWins.dealer} ROUNDS` : result.delta === 0 ? "NO CHANGE" : `${result.delta > 0 ? "+" : ""}${result.delta} CHIP`;
-    this.els["next-round"].hidden = result.matchComplete;
-    if (result.matchComplete) this.els["result-delta"].textContent = `${result.matchWins.player} — ${result.matchWins.dealer} ROUNDS　まもなくメイン画面へ`;
-    this.makeConfetti(result.outcome === "win");
+    this.els["result-score"].textContent = `${result.chips.player} — ${result.chips.dealer} CHIP`;
+    const reason = result.bankrupt === "player" ? (duo ? "PLAYER 1のチップが尽きました" : "チップが尽きました")
+      : result.bankrupt === "dealer" ? (duo ? "PLAYER 2のチップが尽きました" : "相手のチップが尽きました")
+        : "チップが多い方の勝ちです";
+    this.els["result-delta"].textContent = `${reason}　まもなくメイン画面へ`;
+    this.makeConfetti(celebrate);
     overlay.hidden = false;
-    if (result.outcome === "loss") this.shake();
-    this.cue(result.blackjack ? "blackjack" : result.outcome);
+    if (mood === "loss") this.shake();
+    this.cue(mood);
+  }
+
+  /** ラウンド開始前に賭け額を決めてもらう。 */
+  async requestBet(game) {
+    const overlay = this.els["bet-overlay"];
+    const duo = game.mode === "duo";
+    const max = game.maxWager();
+    let amount = Math.min(Math.max(BET_STEP, game.baseWager), max);
+    this.els["bet-round"].textContent = `ROUND ${game.matchRound + 1} / ${MATCH_ROUNDS}`;
+    this.els["bet-my-label"].textContent = duo ? "PLAYER 1" : "YOU";
+    this.els["bet-rival-label"].textContent = duo ? "PLAYER 2" : "DEALER";
+    this.els["bet-my-chips"].textContent = game.chips.player;
+    this.els["bet-rival-chips"].textContent = game.chips.dealer;
+    const presets = [...new Set([BET_STEP, 100, 200, 300].filter((value) => value < max).concat(max))];
+    const list = this.els["bet-presets"];
+    const render = () => {
+      this.els["bet-amount"].textContent = amount;
+      list.querySelectorAll("button").forEach((button) => button.classList.toggle("is-selected", Number(button.dataset.bet) === amount));
+    };
+    list.replaceChildren(...presets.map((value) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.bet = value;
+      button.dataset.cue = "select";
+      button.innerHTML = value === max ? `<span>ALL IN</span><small>${value}</small>` : `<span>${value}</span><small>CHIP</small>`;
+      button.addEventListener("click", () => { amount = value; render(); });
+      return button;
+    }));
+    render();
+    overlay.hidden = false;
+    await new Promise((resolve) => this.els["bet-confirm"].addEventListener("click", resolve, { once: true }));
+    overlay.hidden = true;
+    return amount;
   }
 
   makeConfetti(show) {
@@ -356,6 +411,6 @@ export class GameUI {
   }
 
   populateSkillGuide() {
-    this.els["skill-guide"].innerHTML = SPECIALS.map((skill) => `<article><b>${skill.icon}</b><strong>${skill.name}</strong><span>${skill.description}</span></article>`).join("");
+    this.els["skill-guide"].innerHTML = SPECIALS.map((skill) => `<article class="is-rank-${skill.rank.toLowerCase()}"><b>${skill.icon}</b><strong>${skill.name}<i>${skill.rank}</i></strong><span>${skill.description}</span></article>`).join("");
   }
 }

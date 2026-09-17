@@ -25,3 +25,135 @@
 .chip-delta{position:fixed;z-index:260;left:var(--chip-x);top:var(--chip-y);min-width:110px;padding:8px 12px;text-align:center;pointer-events:none;border:1px solid currentColor;background:rgba(8,5,6,.94);font:900 1rem Arial,sans-serif;letter-spacing:.08em;transform:translate(-50%,-110%);animation:chip-delta-float 1.45s ease both}.chip-delta.is-gain{color:#fff1a0;box-shadow:0 0 26px #e5b22e}.chip-delta.is-loss{color:#ff8c9c;box-shadow:0 0 26px #c91c39}.chip-gain{animation:chip-count-gain .32s ease infinite alternate;color:#fff2a0!important;text-shadow:0 0 12px #ffd84d}.chip-loss{animation:chip-count-loss .18s ease infinite alternate;color:#ff8a9a!important;text-shadow:0 0 12px #d51535}.playing-card.is-changing-in{z-index:22;animation:card-change-in .82s cubic-bezier(.16,.86,.26,1.12) both}.playing-card.is-changing-in .card-face,.playing-card.is-changing-in .card-back{box-shadow:0 0 0 3px #e2b83f,0 0 32px #ffe274,inset 0 0 18px rgba(255,224,116,.65)}
 @keyframes chip-delta-float{0%{opacity:0;transform:translate(-50%,0) scale(.55)}18%,68%{opacity:1;transform:translate(-50%,-130%) scale(1.08)}100%{opacity:0;transform:translate(-50%,-230%) scale(.96)}}@keyframes chip-count-gain{to{transform:scale(1.2)}}@keyframes chip-count-loss{to{transform:translateX(3px) scale(1.12)}}@keyframes card-change-in{0%{opacity:0;transform:translateX(42px) rotateY(90deg) scale(.65);filter:brightness(2.3) drop-shadow(0 0 25px #ffe274)}55%{opacity:1;transform:translateX(-6px) rotateY(-8deg) scale(1.1)}100%{transform:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* 必殺技のランク: A=金 / B=従来の紫 / C=シルバー */
+.special-card.tarot-card .rank-badge{position:absolute;top:3px;right:4px;z-index:2;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;font:800 .55rem/1 Arial,sans-serif;font-style:normal;color:#1a1206;background:#cfc7b4;border:1px solid rgba(0,0,0,.35)}
+.special-card.tarot-card.is-rank-a{color:#fff3c4;background:radial-gradient(circle at 50% 36%,rgba(255,214,110,.42),transparent 38%),linear-gradient(150deg,#5b3d07,#231301 62%,#4a2d05);border-color:#ffdf8b;box-shadow:inset 0 0 0 2px #7d5a12,inset 0 0 18px rgba(255,203,84,.36),0 6px 14px rgba(0,0,0,.45),0 0 12px rgba(233,178,54,.35)}
+.special-card.tarot-card.is-rank-a::before{border-color:rgba(255,233,160,.6)}
+.special-card.tarot-card.is-rank-a .tarot-stars{color:#ffe9a6!important}
+.special-card.tarot-card.is-rank-a b{text-shadow:0 0 10px #ffd35e}
+.special-card.tarot-card.is-rank-a small{color:#e4cf95}
+.special-card.tarot-card.is-rank-a .rank-badge{color:#3d2a02;background:linear-gradient(#fff2b8,#dba62a);border-color:#fff4c4}
+.special-card.tarot-card.is-rank-c{color:#eef1f6;background:radial-gradient(circle at 50% 36%,rgba(198,209,224,.32),transparent 38%),linear-gradient(150deg,#39414f,#161a21 64%,#2b313c);border-color:#c8d2e0;box-shadow:inset 0 0 0 2px #5c6676,inset 0 0 16px rgba(176,190,210,.3),0 6px 12px rgba(0,0,0,.45)}
+.special-card.tarot-card.is-rank-c::before{border-color:rgba(226,234,245,.5)}
+.special-card.tarot-card.is-rank-c .tarot-stars{color:#d5deeb!important}
+.special-card.tarot-card.is-rank-c b{text-shadow:0 0 10px #b9c6d8}
+.special-card.tarot-card.is-rank-c small{color:#b3bdcc}
+.special-card.tarot-card.is-rank-c .rank-badge{color:#22272f;background:linear-gradient(#ffffff,#b6c1d0);border-color:#e8eef6}
+.skill-guide article strong{display:flex;align-items:center;gap:6px}
+.skill-guide article strong i{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;font:800 .58rem/1 Arial,sans-serif;font-style:normal;color:#1a1206;background:#cfc7b4}
+.skill-guide article.is-rank-a{border-color:rgba(255,215,110,.5);background:rgba(90,60,10,.24)}
+.skill-guide article.is-rank-a b{color:#ffe9a6;border-color:#ffdf8b}
+.skill-guide article.is-rank-a strong i{background:linear-gradient(#fff2b8,#dba62a)}
+.skill-guide article.is-rank-c{border-color:rgba(200,210,224,.42);background:rgba(58,66,80,.26)}
+.skill-guide article.is-rank-c b{color:#e4eaf3;border-color:#c8d2e0}
+.skill-guide article.is-rank-c strong i{background:linear-gradient(#ffffff,#b6c1d0)}
+
+/* チップ表示: 相手は右上（ヘッダー）、自分は左下（自分の手札の左下） */
+.my-chips{position:absolute;left:0;bottom:0;z-index:5;padding:5px 9px;background:rgba(6,4,5,.62);border:1px solid var(--line);border-radius:6px}
+.my-chips small{color:var(--gold)}
+.rival-chips small{color:var(--muted)}
+
+/* ベット画面 */
+.bet-overlay,.standing-overlay{position:fixed;z-index:125;inset:0;display:grid;place-items:center;padding:20px;background:rgba(4,2,3,.92);backdrop-filter:blur(9px)}
+.bet-panel,.standing-panel{width:min(100%,440px);padding:28px 22px;text-align:center;background:linear-gradient(145deg,#3c0912,#0c0708);border:1px solid var(--gold);box-shadow:0 25px 80px #000;animation:modal-in .35s ease both}
+.bet-panel>p,.standing-panel>p{margin:0;color:var(--gold);font:700 .7rem Arial,sans-serif;letter-spacing:.22em}
+.bet-panel h2,.standing-panel h2{margin:5px 0 18px;font-size:1.55rem}
+.bet-balance{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
+.bet-balance span{display:grid;gap:2px;padding:9px 6px;background:rgba(6,4,4,.5);border:1px solid var(--line);border-radius:6px}
+.bet-balance small{color:var(--muted);font:700 .55rem Arial,sans-serif;letter-spacing:.14em}
+.bet-balance b{color:var(--gold-light);font:800 1.15rem Arial,sans-serif}
+.bet-amount{display:flex;align-items:baseline;justify-content:center;gap:10px;margin-bottom:14px}
+.bet-amount small{color:var(--gold);font:700 .62rem Arial,sans-serif;letter-spacing:.2em}
+.bet-amount strong{color:#fff;font:800 2.6rem Arial,sans-serif;line-height:1;text-shadow:0 0 22px rgba(255,214,96,.45)}
+.bet-presets{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;margin-bottom:18px}
+.bet-presets button{display:grid;gap:1px;min-height:56px;padding:7px 4px;color:var(--cream);background:rgba(8,5,6,.6);border:1px solid rgba(217,174,66,.28);border-radius:7px;cursor:pointer;transition:transform .16s,border-color .16s,color .16s,background .16s}
+.bet-presets button span{font:800 1rem Arial,sans-serif}
+.bet-presets button small{color:var(--muted);font:.55rem Arial,sans-serif;letter-spacing:.12em}
+.bet-presets button:hover{transform:translateY(-2px);border-color:var(--gold)}
+.bet-presets button.is-selected{color:#1e1204;background:linear-gradient(115deg,#c79226,#ffe59a 55%,#c08e21);border-color:#fff0aa}
+.bet-presets button.is-selected small{color:#3f2a05}
+.bet-panel .start-button{width:100%}
+
+/* ラウンドごとのチップ表示（勝敗は出さない） */
+.standing-rows{display:grid;gap:9px;margin:4px 0 20px}
+.standing-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px;padding:13px 15px;background:rgba(6,4,4,.5);border:1px solid var(--line);border-radius:7px}
+.standing-row span{color:var(--muted);font:700 .68rem Arial,sans-serif;letter-spacing:.14em;text-align:left}
+.standing-row strong{color:var(--gold-light);font:800 1.5rem Arial,sans-serif;line-height:1}
+.standing-row em{min-width:54px;font:800 .85rem Arial,sans-serif;font-style:normal;color:var(--muted)}
+.standing-row em.is-gain{color:#ffe177}
+.standing-row em.is-loss{color:#ff8c9c}
+.standing-panel .start-button{width:100%}
+@media(max-width:520px){.my-chips{padding:4px 7px}.bet-amount strong{font-size:2.1rem}.standing-row{padding:11px 12px;gap:8px}.standing-row strong{font-size:1.25rem}}
+
+/* 最終ラウンドはLOBBYボタンだけになるので中央に置く */
+.result-overlay.is-final .result-actions{grid-template-columns:min(100%,280px);justify-content:center}
+
+/* Match screen: opponent search, invitations and the match room */
+.match-screen{grid-template-rows:auto 1fr;align-content:start;background:#090506}
+.match-screen .chip-icon{font-size:.6rem;letter-spacing:.04em}
+.match-body{width:min(100%,760px);margin:0 auto;padding:14px clamp(12px,4vw,26px) max(26px,env(safe-area-inset-bottom));overflow-y:auto}
+.search-panel{padding:16px clamp(13px,4vw,20px) 13px;background:linear-gradient(150deg,rgba(74,11,21,.95),rgba(16,8,10,.97));border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.5),inset 0 0 26px rgba(150,24,40,.18)}
+.search-row{display:grid;grid-template-columns:1fr minmax(96px,132px);gap:11px;align-items:stretch}
+.search-field{position:relative;display:flex;align-items:center;background:#f6efe0;border:1px solid var(--gold);border-radius:7px;box-shadow:inset 0 2px 7px rgba(60,30,10,.28)}
+.search-field input{width:100%;min-height:52px;padding:0 44px 0 15px;color:#1c1108;background:none;border:0;border-radius:7px;font:800 1.15rem Arial,sans-serif;letter-spacing:.08em}
+.search-field input:focus{outline:0}
+.search-field input::placeholder{color:#a3937c;font-weight:400}
+.search-clear{position:absolute;right:7px;display:grid;place-items:center;width:30px;height:30px;color:#f4ead6;background:#8c7a63;border:0;border-radius:50%;cursor:pointer;font-size:1.15rem;line-height:1;transition:background .18s}
+.search-clear:hover{background:#6d5d49}
+.search-submit{min-height:52px;color:#25150a;background:linear-gradient(115deg,#8f5b0c,#f8dd78 46%,#b87713 72%,#f4cf62);border:1px solid #fff0aa;border-radius:7px;box-shadow:inset 0 0 0 2px rgba(63,31,0,.3),0 6px 16px rgba(220,163,41,.22);cursor:pointer;font:800 1rem Arial,sans-serif;letter-spacing:.14em;text-shadow:0 1px rgba(255,255,255,.4);transition:transform .16s,filter .16s}
+.search-submit:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.search-submit:active{transform:translateY(2px)}
+.search-hint{margin:11px 0 0;color:var(--muted);font:.76rem/1.5 Arial,sans-serif}
+.search-hint b{color:var(--gold-light)}
+.match-banner{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:clamp(10px,3vw,18px);margin-top:14px;padding:15px clamp(13px,4vw,20px);background:linear-gradient(115deg,#3d0a13,#11080a 58%),radial-gradient(circle at 12% 50%,rgba(212,166,56,.22),transparent 45%);border:1px solid var(--gold);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.banner-art{display:grid;gap:2px;font-size:clamp(1.5rem,6vw,2.1rem);line-height:1;text-shadow:0 3px 10px #000}
+.banner-art span:first-child{color:var(--cream)}
+.banner-art span:last-child{color:#d2384c;margin-left:12px}
+.banner-copy h2{margin:0;color:var(--gold-light);font-size:clamp(1rem,4vw,1.35rem);line-height:1.25;letter-spacing:.04em;text-shadow:0 0 18px rgba(255,214,96,.28)}
+.banner-copy p{margin:6px 0 0;color:var(--muted);font:.72rem/1.55 Arial,sans-serif}
+.banner-id{display:grid;justify-items:center;gap:2px;min-width:62px;padding:8px 10px;background:rgba(6,4,4,.6);border:1px solid var(--line);border-radius:7px}
+.banner-id small{color:var(--gold);font:700 .52rem Arial,sans-serif;letter-spacing:.16em}
+.banner-id strong{color:var(--gold-light);font:800 1.7rem Arial,sans-serif;line-height:1;text-shadow:0 0 16px rgba(255,214,96,.45)}
+.list-heading{display:flex;flex-wrap:wrap;align-items:center;gap:10px clamp(10px,3vw,20px);margin:22px 0 11px}
+.list-heading h3{margin:0;color:var(--gold-light);font-size:clamp(1.25rem,5vw,1.7rem);letter-spacing:.06em}
+.list-filters{display:flex;gap:8px}
+.filter-chip{min-height:36px;padding:6px 12px;color:var(--muted);background:rgba(8,5,6,.6);border:1px solid rgba(217,174,66,.22);border-radius:18px;cursor:pointer;font:700 .72rem Arial,sans-serif;letter-spacing:.06em;transition:color .18s,border-color .18s,background .18s}
+.filter-chip:hover{border-color:var(--gold)}
+.filter-chip.is-selected{color:var(--ink);background:linear-gradient(115deg,#c79226,#ffe59a 55%,#c08e21);border-color:#fff0aa}
+.player-list{display:grid;gap:9px}
+.player-row{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:12px;width:100%;padding:10px 13px;text-align:left;color:var(--cream);background:linear-gradient(120deg,rgba(48,9,16,.92),rgba(13,8,9,.95));border:1px solid rgba(217,174,66,.26);border-radius:9px;cursor:pointer;transition:transform .16s,border-color .16s,box-shadow .16s}
+.player-row:hover:not(:disabled){transform:translateY(-2px);border-color:var(--gold);box-shadow:0 10px 24px rgba(0,0,0,.5),0 0 16px rgba(212,166,56,.14)}
+.player-row:active:not(:disabled){transform:translateY(1px)}
+.player-row:disabled{opacity:.55;cursor:default}
+.player-badge{display:grid;place-items:center;width:56px;height:56px;color:var(--gold-light);background:radial-gradient(circle at 36% 28%,#5e1220,#1a0a0d 72%);border:2px solid var(--gold);border-radius:50%;box-shadow:inset 0 0 12px rgba(0,0,0,.65),0 3px 9px #000;font-size:1.7rem}
+.player-main{display:grid;gap:3px;min-width:0}
+.player-main strong{font-size:1.02rem;letter-spacing:.05em}
+.player-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 9px;color:var(--muted);font:.71rem Arial,sans-serif}
+.player-meta em{font-style:normal;font-weight:700}
+.player-meta em.is-open{color:#7fd39b}
+.player-meta em.is-busy{color:#e2a13c}
+.player-stat{display:grid;justify-items:end;gap:1px;padding-left:6px}
+.player-stat small{color:var(--muted);font:700 .55rem Arial,sans-serif;letter-spacing:.14em}
+.player-stat b{display:flex;align-items:center;gap:5px;color:var(--gold-light);font:800 1.15rem Arial,sans-serif}
+.player-stat i{display:grid;place-items:center;width:20px;height:20px;color:#281805;background:var(--gold);border:2px dashed #5f3904;border-radius:50%;font:800 .5rem Arial,sans-serif;font-style:normal}
+.list-empty{margin:16px 0 0;padding:20px 14px;text-align:center;color:var(--muted);background:rgba(8,5,6,.45);border:1px dashed rgba(217,174,66,.22);border-radius:9px;font:.8rem/1.6 Arial,sans-serif}
+.invite-overlay,.room-overlay{position:fixed;z-index:130;inset:0;display:grid;place-items:center;padding:20px;background:rgba(4,2,3,.92);backdrop-filter:blur(9px)}
+.invite-panel,.room-panel{width:min(100%,430px);padding:32px 22px;text-align:center;background:linear-gradient(145deg,#3f0b14,#0d0708);border:1px solid var(--gold);box-shadow:0 25px 80px #000;animation:modal-in .38s ease both}
+.invite-panel>p,.room-panel>p{margin:0;color:var(--gold);font:700 .7rem Arial,sans-serif;letter-spacing:.22em}
+.invite-suit{display:block;margin-top:10px;color:var(--gold);font-size:2.6rem}
+.invite-panel h2,.room-panel h2{margin:6px 0;font-size:clamp(1.7rem,7vw,2.3rem);letter-spacing:.08em}
+.invite-panel>small{display:block;color:var(--muted);font:.8rem/1.5 Arial,sans-serif}
+.invite-actions{display:grid;grid-template-columns:1.4fr 1fr;gap:9px;margin-top:22px}
+.invite-actions button{min-height:54px;color:#211300;background:linear-gradient(120deg,#b47510,#ffe18a,#ad6c08);border:1px solid #fff0ad;cursor:pointer;font-weight:800}
+.invite-actions button:last-child{color:var(--cream);background:#1c0b0d;border-color:#67303a}
+.room-seats{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:20px 0 24px}
+.room-seat{display:grid;justify-items:center;gap:3px;padding:14px 8px;background:rgba(6,4,4,.55);border:1px solid var(--line);border-radius:8px}
+.room-seat span{color:var(--gold);font-size:2rem;line-height:1}
+.room-seat strong{font:800 .95rem Arial,sans-serif;letter-spacing:.06em}
+.room-seat small{color:var(--muted);font:700 .55rem Arial,sans-serif;letter-spacing:.16em}
+.room-vs{color:var(--gold-light);font:800 1.1rem Arial,sans-serif;letter-spacing:.1em}
+.room-panel .start-button{width:100%}
+.room-panel .start-button:disabled{cursor:default;filter:grayscale(.55) brightness(.8)}
+.room-leave{width:100%;min-height:46px;margin-top:10px;color:var(--cream);background:#1c0b0d;border:1px solid #67303a;cursor:pointer;font:.85rem Arial,sans-serif}
+@media(max-width:520px){.match-body{padding-inline:11px}.search-row{grid-template-columns:1fr 92px;gap:8px}.search-submit{font-size:.88rem;letter-spacing:.08em}.match-banner{grid-template-columns:auto 1fr;gap:10px}.banner-id{grid-column:1/-1;justify-self:start;display:flex;align-items:baseline;gap:9px;min-width:0}.banner-id strong{font-size:1.3rem}.player-row{grid-template-columns:46px 1fr auto;gap:9px;padding:9px 10px}.player-badge{width:46px;height:46px;font-size:1.35rem}.player-main strong{font-size:.92rem}.room-seats{gap:6px}.room-seat{padding:11px 4px}}

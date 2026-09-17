@@ -2,13 +2,26 @@ import { CasinoDuelGame } from "./game.js";
 import { getSpecial } from "./skills.js";
 import { GameUI } from "./ui.js";
 import { scoreHand } from "./deck.js";
+import { installSoundBoard } from "./sound.js";
+import { MatchService } from "./match.js";
+import { MatchScreen } from "./matchUI.js";
 
 const game = new CasinoDuelGame();
 const ui = new GameUI();
+const matchService = new MatchService();
+const matchScreen = new MatchScreen(ui, matchService, { onStart: () => startGame() });
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const CPU_PACE = { think: 1400, declare: 900, afterAction: 1200, highlight: 1600 };
 let selectedMode = "solo";
 let selectedDifficulty = "normal";
 let busy = false;
+let cpuSpecialUsed = false;
+
+/** 行動（HIT / STAND）を終えてターンを相手に渡す。必殺技ではここを通らない。 */
+function passTurn() {
+  cpuSpecialUsed = false;
+  game.switchActor();
+}
 
 function setMode(mode) {
   selectedMode = mode;
@@ -41,23 +54,24 @@ async function startGame() {
 
 async function beginRound() {
   busy = true;
+  cpuSpecialUsed = false;
+  ui.els["standing-overlay"].hidden = true;
+  game.setWager(await ui.requestBet(game));
   const firstActor = await ui.runCoinToss(game.mode);
   game.startRound(firstActor);
   if (game.mode === "duo") await ui.requestHandoff(firstActor);
   ui.prepareRound(game, useSpecial);
   await ui.dealInitial(game);
-  if (game.score("player") === 21 || game.score("dealer") === 21) {
-    await finishRound();
-    return;
-  }
   game.phase = "playing";
+  // 21は即勝利にしない。それ以上引けなくなるだけで、勝敗はターンが終わってから決める。
+  game.refreshAutoStand();
   await enterTurn(false);
 }
 
 async function enterTurn(needsHandoff) {
   if (game.isRoundOver()) { await finishRound(); return; }
   if (game.stood[game.actor]) {
-    game.switchActor();
+    passTurn();
     await enterTurn(false);
     return;
   }
@@ -69,14 +83,23 @@ async function enterTurn(needsHandoff) {
 
   if (game.mode === "solo" && game.actor === "dealer") {
     ui.els["round-status"].textContent = "DEALER THINKING";
-    await wait(650);
-    const specialId = game.chooseDealerSpecial();
+    await wait(CPU_PACE.think);
+    // 必殺技はターンを消費しないが、CPUが何枚も続けて使うと見ていられないので1ターン1枚まで。
+    const specialId = cpuSpecialUsed ? null : game.chooseDealerSpecial();
     if (specialId) {
+      cpuSpecialUsed = true;
       await executeSpecial(specialId, true);
       return;
     }
-    if (game.dealerShouldHit()) await performHit(true);
-    else await performStand(true);
+    if (game.dealerShouldHit()) {
+      ui.toast("CPUはHIT — カードを1枚引きます");
+      await wait(CPU_PACE.declare);
+      await performHit(true);
+    } else {
+      ui.toast("CPUはSTAND — ここで勝負します");
+      await wait(CPU_PACE.declare);
+      await performStand(true);
+    }
     return;
   }
 
@@ -97,10 +120,18 @@ async function performHit(isAi = false) {
   ui.setActions(false, actor);
   const card = game.hit(actor);
   await ui.addCard(game, actor, card);
+  if (isAi) {
+    ui.toast(`CPUは ${card.symbol}${card.rank} を引いた`);
+    await wait(CPU_PACE.afterAction);
+  }
   clearTurnLock(actor);
-  if (game.score(actor) >= 21) game.stood[actor] = true;
+  game.refreshAutoStand();
+  if (game.score(actor) === 21 && !(game.mode === "solo" && actor === "dealer")) {
+    ui.toast("21! これ以上は引けません。勝敗は勝負がついてから");
+    await wait(1000);
+  }
   if (game.isRoundOver()) { await finishRound(); return; }
-  game.switchActor();
+  passTurn();
   await enterTurn(true);
 }
 
@@ -111,8 +142,9 @@ async function performStand(isAi = false) {
   game.stood[actor] = true;
   clearTurnLock(actor);
   ui.setActions(false, actor);
+  if (isAi) await wait(CPU_PACE.afterAction);
   if (game.isRoundOver()) { await finishRound(); return; }
-  game.switchActor();
+  passTurn();
   await enterTurn(true);
 }
 
@@ -168,12 +200,11 @@ async function executeSpecial(id, isAi) {
       actorCardId = await ui.chooseCards(game[actor], "自分から渡す1枚を選択");
     }
   }
-  if (id === "reverse") cardId = game[opponent].at(-1)?.id;
-  if (["reverse", "selectReverse", "shuffle"].includes(id)) {
+  if (["selectReverse", "shuffle"].includes(id)) {
     const targets = id === "shuffle" ? [{ target: actor, cardId: actorCardId }, { target: opponent, cardId: opponentCardId }] : [{ target: opponent, cardId }];
     const subject = isAi ? "CPU" : "必殺技";
-    const message = id === "shuffle" ? `光っている2枚を${subject}が交換します` : id === "selectReverse" ? "光っているカードが捨てられます" : "光っているカードが引き直されます";
-    await ui.highlightCards(targets, message);
+    const message = id === "shuffle" ? `光っている2枚を${subject}が交換します` : "光っているカードが捨てられます";
+    await ui.highlightCards(targets, message, isAi ? CPU_PACE.highlight : 1000);
   }
   const result = game.applySpecial(actor, id, { cardId, actorCardId, opponentCardId });
   if (!result.ok) { ui.toast(result.reason); busy = false; await enterTurn(false); return; }
@@ -186,42 +217,46 @@ async function executeSpecial(id, isAi) {
   } else {
     ui.renderHands(game);
     if (id === "shuffle") await ui.animateCardChanges([{ target: actor, cardId: result.taken.id }, { target: opponent, cardId: result.given.id }]);
-    if (id === "reverse") await ui.animateCardChanges([{ target: opponent, cardId: result.added.id }]);
   }
   await ui.animateChipChange(game, chipsBefore);
   ui.renderSpecials(game);
   const messages = {
-    double: "勝負額が200チップに上昇!", triple: "勝負額が300チップに上昇!",
-    reverse: "相手の最後のカードを引き直した!", shield: "敗北時の損失を100軽減!",
-    peek: "次に自分が引くカードを確保!", selectReverse: "選んだカードを捨てた!",
-    shuffle: "選んだカードを1枚ずつ交換!", steal: `${result.amount}チップを奪取!`,
+    double: `勝負額が2倍の${game.wager}チップに!`, triple: `勝負額が3倍の${game.wager}チップに!`,
+    shield: "敗北時の損失を100軽減!", peek: "次に自分が引くカードを確保!",
+    selectReverse: "選んだカードを捨てた!", shuffle: "選んだカードを1枚ずつ交換!",
     extraDraw: "1枚引いて、選んだ手札を捨てた!", lock: "相手の次ターンの必殺技を封印!",
   };
   ui.toast(messages[id]);
+  if (isAi) await wait(CPU_PACE.afterAction);
   clearTurnLock(actor);
-  if (game.score(actor) >= 21) game.stood[actor] = true;
+  // 必殺技で手札が変わるので、双方の自動STANDを見直す。
+  game.refreshAutoStand();
   if (game.isRoundOver()) { await wait(350); await finishRound(); return; }
-  if (result.keepTurn) { await enterTurn(false); return; }
-  game.switchActor();
-  await enterTurn(true);
+  // 必殺技はターンを消費しない。続けてHIT / STAND（または別の必殺技）を選べる。
+  await enterTurn(false);
 }
 
 async function finishRound() {
   if (game.phase === "settled") return;
   busy = true;
   ui.setActions(false, game.actor);
+  ui.els["round-status"].textContent = "SHOWDOWN";
+  await wait(800);
   await ui.revealDealer(game);
+  await wait(700);
   const chipsBefore = { ...game.chips };
   const result = game.settle();
   ui.renderHands(game);
   await ui.animateChipChange(game, chipsBefore);
-  await wait(350);
-  ui.showResult(result, game);
+  await wait(1300);
+  // ラウンドごとは勝敗を出さず、チップの状況だけ見せる。勝敗画面は試合の最後だけ。
   if (result.matchComplete) {
-    await wait(3200);
+    ui.showResult(result, game);
+    await wait(6000);
     returnToLobby();
     return;
   }
+  ui.showStanding(result, game);
   busy = false;
 }
 
@@ -232,7 +267,8 @@ async function nextRound() {
 function returnToLobby() {
   busy = false;
   game.phase = "idle";
-  ["result-overlay", "handoff-overlay", "special-overlay", "coin-overlay", "select-card-overlay"].forEach((id) => { ui.els[id].hidden = true; });
+  ["result-overlay", "handoff-overlay", "special-overlay", "coin-overlay", "select-card-overlay", "invite-overlay", "room-overlay", "bet-overlay", "standing-overlay"].forEach((id) => { ui.els[id].hidden = true; });
+  matchService.cancel();
   ui.transitionTo("lobby");
 }
 
@@ -244,15 +280,27 @@ function bindDialogs() {
   document.querySelectorAll("[data-difficulty]").forEach((button) => button.addEventListener("click", () => { setDifficulty(button.dataset.difficulty); ui.els["difficulty-dialog"].close(); }));
 }
 
-document.querySelectorAll("[data-mode]").forEach((button) => button.addEventListener("click", () => setMode(button.dataset.mode)));
+// ボタンはすべてカチッと鳴らす。別の音にしたいものは data-cue で指定する。
+document.addEventListener("click", (event) => {
+  const button = event.target.closest?.("button");
+  if (button && !button.disabled) ui.cue(button.dataset.cue ?? "press");
+}, true);
+document.querySelectorAll("[data-mode]").forEach((button) => button.addEventListener("click", () => {
+  setMode(button.dataset.mode);
+  if (button.dataset.mode === "duo") matchScreen.open();
+}));
+ui.els["match-back"].addEventListener("click", returnToLobby);
 ui.els["game-start"].addEventListener("click", startGame);
 ui.els["hit-button"].addEventListener("click", () => performHit(false));
 ui.els["stand-button"].addEventListener("click", () => performStand(false));
-ui.els["next-round"].addEventListener("click", nextRound);
+ui.els["standing-next"].addEventListener("click", nextRound);
+ui.els["standing-lobby"].addEventListener("click", returnToLobby);
 ui.els["back-lobby"].addEventListener("click", returnToLobby);
 ui.els["result-lobby"].addEventListener("click", returnToLobby);
 
+installSoundBoard();
 ui.populateSkillGuide();
 bindDialogs();
 setMode("solo");
 setDifficulty("normal");
+matchService.join();
