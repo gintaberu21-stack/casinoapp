@@ -20,12 +20,14 @@ export class Store {
       this.memory.counter += 1;
       return this.memory.counter;
     }
-    const result = await this.database.collection("counters").findOneAndUpdate(
+    // includeResultMetadataを明示しないとドライバの版で戻り値の形が変わるので固定する。
+    const document = await this.database.collection("counters").findOneAndUpdate(
       { _id: COUNTER_ID },
       { $inc: { value: 1 } },
-      { upsert: true, returnDocument: "after" },
+      { upsert: true, returnDocument: "after", includeResultMetadata: false },
     );
-    return result.value ?? result?.value?.value ?? 1;
+    const next = Number(document?.value);
+    return Number.isInteger(next) && next > 0 ? next : 1;
   }
 
   /** 誰もいなくなったら採番をリセットして、またIDを1番から配る。 */

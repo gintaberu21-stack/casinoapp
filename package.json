@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "start:env": "node --env-file=.env server/index.js",
     "check": "node --check dist/js/app.js && node --check server/index.js"
   },
   "dependencies": {
