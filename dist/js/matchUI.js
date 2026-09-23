@@ -76,8 +76,8 @@ export class MatchScreen {
    */
   beginMatch() {
     this.closeOverlays();
-    this.onStart?.();
-    this.ui.toast("※盤面の同期は準備中です。いまは各端末で別々に進みます");
+    this.onStart?.({ role: this.service.isHost ? "host" : "guest" });
+    this.ui.toast(this.service.isHost ? "対戦を開始します" : "ホストがゲームを準備しています…");
   }
 
   closeOverlays() {

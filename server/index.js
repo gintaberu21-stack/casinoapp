@@ -5,11 +5,13 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { connect, close } from "./db.js";
 import { Store } from "./store.js";
+import { createAccessGate } from "./access.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const staticDir = path.join(currentDir, "..", "dist");
 const port = Number(process.env.PORT) || 3000;
 const HEARTBEAT_MS = 25000;
+const access = createAccessGate({ code: process.env.ACCESS_CODE, secret: process.env.ACCESS_TOKEN_SECRET });
 
 const database = await connect(process.env.MONGODB_URI).catch((error) => {
   console.error("[db] 接続に失敗したのでメモリ保存で起動します:", error.message);
@@ -19,8 +21,13 @@ const store = new Store(database);
 console.log(`[db] ${store.usesMongo ? "MongoDBに接続しました" : "メモリ保存で動作中（MONGODB_URI未設定）"}`);
 
 const app = express();
-app.use(express.static(staticDir, { maxAge: "1h" }));
 app.get("/healthz", (_request, response) => response.json({ ok: true, storage: store.usesMongo ? "mongodb" : "memory" }));
+app.use(express.urlencoded({ extended: false }));
+app.get("/access", access.showPage);
+app.post("/access", access.submit);
+app.use(access.middleware);
+// 対戦ロジック更新後に古いJSが端末へ残ると同期版と混在するため、常に再検証する。
+app.use(express.static(staticDir, { maxAge: 0, etag: true }));
 app.get("/api/matches", async (_request, response) => {
   try { response.json(await store.recentMatches()); } catch { response.status(500).json({ error: "読み込みに失敗しました" }); }
 });
@@ -53,7 +60,14 @@ async function releasePeer(socket, reason) {
   await store.setStatus(socket.playerId, "idle", null);
 }
 
-const wss = new WebSocketServer({ server, path: "/ws" });
+const wss = new WebSocketServer({
+  server,
+  path: "/ws",
+  verifyClient: ({ req }, done) => {
+    const allowed = access.authorized(req);
+    done(allowed, allowed ? 200 : 401, allowed ? "OK" : "Access code required");
+  },
+});
 
 wss.on("connection", (socket) => {
   socket.isAlive = true;

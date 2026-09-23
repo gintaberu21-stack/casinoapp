@@ -13,5 +13,9 @@ services:
         sync: false
       - key: MONGODB_DB
         value: casino_duel
+      - key: ACCESS_CODE
+        sync: false
+      - key: ACCESS_TOKEN_SECRET
+        generateValue: true
       - key: NODE_VERSION
         value: "22"

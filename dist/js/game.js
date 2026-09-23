@@ -27,6 +27,49 @@ export class CasinoDuelGame {
     this.difficulty = difficulty;
   }
 
+  /** ホストの確定状態を別端末へ送るための、JSON化可能なスナップショット。 */
+  snapshot({ swapSeats = false } = {}) {
+    const clone = (value) => structuredClone(value);
+    const swapPair = (pair) => swapSeats
+      ? { player: clone(pair.dealer), dealer: clone(pair.player) }
+      : clone(pair);
+    const swapActor = (actor) => swapSeats ? opponentOf(actor) : actor;
+    return {
+      mode: "online",
+      difficulty: this.difficulty,
+      chips: swapPair(this.chips),
+      baseWager: this.baseWager,
+      wager: this.wager,
+      skills: swapPair(this.skills),
+      matchRound: this.matchRound,
+      matchWins: swapPair(this.matchWins),
+      player: clone(swapSeats ? this.dealer : this.player),
+      dealer: clone(swapSeats ? this.player : this.dealer),
+      reservedCard: swapPair(this.reservedCard),
+      stood: swapPair(this.stood),
+      autoStood: swapPair(this.autoStood),
+      lossShield: swapPair(this.lossShield),
+      locked: swapPair(this.locked),
+      phase: this.phase,
+      actor: swapActor(this.actor),
+      dealerRevealed: this.dealerRevealed,
+    };
+  }
+
+  /** ゲスト端末はゲーム計算をせず、ホストから届いた状態だけを表示する。 */
+  restore(snapshot) {
+    const fields = [
+      "mode", "difficulty", "chips", "baseWager", "wager", "skills", "matchRound",
+      "matchWins", "player", "dealer", "reservedCard", "stood", "autoStood",
+      "lossShield", "locked", "phase", "actor", "dealerRevealed",
+    ];
+    fields.forEach((field) => {
+      if (snapshot[field] !== undefined) this[field] = structuredClone(snapshot[field]);
+    });
+    // 山札はホストだけが保持する。ゲスト側でカードを引く処理は実行しない。
+    this.deck = [];
+  }
+
   resetRound() {
     this.deck = [];
     this.player = [];

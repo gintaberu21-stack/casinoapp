@@ -1,21 +1,17 @@
 # デプロイ手順（MongoDB Atlas + Render）
 
-コードと設定はすべて用意済みです。ここから先は**アカウント操作と接続文字列（パスワード入り）の入力**なので、ご自身で実施してください。所要15〜20分ほどです。
+コードと設定はすべて用意済みです。GitHubリポジトリも設定済みです。
 
 接続文字列はパスワードを含みます。**チャットに貼らず、Renderの画面に直接入力してください。**
 
 ---
 
-## 1. GitHubにリポジトリを作る
+## 1. GitHubへ最新版を反映する
 
-現在の `origin` は Sites 用のホストで Render からは読めないため、GitHub のリポジトリが必要です。
-
-1. https://github.com/new で新しいリポジトリを作成（**Private でOK**、README等は追加しない）
-2. 作成後に表示される URL を使って、このフォルダで次を実行：
+`origin`はGitHubの`gintaberu21-stack/casinoapp`です。
 
 ```bash
-git remote add github https://github.com/<あなたのユーザー名>/<リポジトリ名>.git
-git push -u github main
+git push origin main
 ```
 
 `node_modules` と `.env` は `.gitignore` 済みなので上がりません。
@@ -56,6 +52,8 @@ mongodb+srv://ユーザー名:パスワード@クラスタ名.xxxxx.mongodb.net/
    |---|---|
    | `MONGODB_URI` | 手順2でコピーした接続文字列 |
    | `MONGODB_DB` | `casino_duel` |
+   | `ACCESS_CODE` | 友だちへ共有する合言葉 |
+   | `ACCESS_TOKEN_SECRET` | Render側で自動生成 |
 
 5. **Create Web Service** を押すとビルドとデプロイが始まります
 
@@ -67,7 +65,8 @@ mongodb+srv://ユーザー名:パスワード@クラスタ名.xxxxx.mongodb.net/
 
 - `https://<URL>/healthz` を開いて `{"ok":true,"storage":"mongodb"}` と出れば **MongoDB接続まで成功**
   - `"storage":"memory"` の場合は `MONGODB_URI` が読めていません（環境変数のスペルか、Atlas の Network Access を確認）
-- トップページを開いて「ふたりで対決」→ 右上に自分のIDが出れば **WebSocket接続も成功**
+- トップページでは最初に合言葉画面が出ます。正しい合言葉で入場できることを確認します
+- 「ふたりで対決」→ 右上に自分のIDが出れば **WebSocket接続も成功**
 - **スマホ2台**で開き、片方のIDをもう片方で検索 → 申し込み → 承認 → 同じ部屋に入れることを確認
 
 ---
@@ -85,6 +84,7 @@ mongodb+srv://ユーザー名:パスワード@クラスタ名.xxxxx.mongodb.net/
 ```bash
 npm install
 npm start          # http://localhost:3000
+npm run test:integration
 ```
 
 `MONGODB_URI` を設定しなければメモリ保存で起動するので、DBなしで動作確認できます。

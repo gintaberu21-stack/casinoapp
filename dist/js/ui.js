@@ -9,6 +9,24 @@ export class GameUI {
     this.els = Object.fromEntries([...document.querySelectorAll("[id]")].map((node) => [node.id, node]));
     this.toastTimer = null;
     this.onSpecial = null;
+    this.onlineRole = null;
+  }
+
+  setOnlineRole(role = null) {
+    this.onlineRole = role;
+  }
+
+  isVersus(game) {
+    return game.mode === "duo" || game.mode === "online";
+  }
+
+  seatLabels(game) {
+    if (game.mode !== "online") return this.isVersus(game)
+      ? { player: "PLAYER 1", dealer: "PLAYER 2" }
+      : { player: "YOU", dealer: "DEALER" };
+    return this.onlineRole === "guest"
+      ? { player: "YOU", dealer: "PLAYER 1" }
+      : { player: "YOU", dealer: "PLAYER 2" };
   }
 
   cue(name) {
@@ -39,6 +57,7 @@ export class GameUI {
 
   cardIsHidden(game, target, index) {
     if (target !== "dealer" || index !== 1 || game.dealerRevealed) return false;
+    if (game.mode === "online") return true;
     return !(game.mode === "duo" && game.actor === "dealer");
   }
 
@@ -51,8 +70,9 @@ export class GameUI {
     this.els["next-card-preview"].hidden = true;
     this.els["wager-count"].textContent = game.wager;
     this.els["round-progress"].textContent = `ROUND ${game.matchRound} / ${MATCH_ROUNDS}`;
-    this.els["rival-chip-label"].textContent = game.mode === "duo" ? "PLAYER 2" : "DEALER";
-    this.els["my-chip-label"].textContent = game.mode === "duo" ? "PLAYER 1" : "YOU";
+    const labels = this.seatLabels(game);
+    this.els["rival-chip-label"].textContent = labels.dealer;
+    this.els["my-chip-label"].textContent = labels.player;
     this.updateScores(game);
     this.renderSpecials(game, true);
     this.setActions(false, game.actor);
@@ -170,7 +190,7 @@ export class GameUI {
   }
 
   renderSpecials(game, dealing = false) {
-    const displayActor = game.mode === "solo" ? "player" : game.actor;
+    const displayActor = game.mode === "solo" || game.mode === "online" ? "player" : game.actor;
     const canUse = game.phase === "playing" && game.actor === displayActor && !game.locked[displayActor];
     const cards = game.skills[displayActor].map((special) => this.createSpecialCard(special, !canUse));
     this.els["special-list"].replaceChildren(...cards);
@@ -201,7 +221,9 @@ export class GameUI {
     this.els["hit-button"].querySelector("small").textContent = dealerTurn ? "ディーラーが引く" : "カードを引く";
     this.els["stand-button"].querySelector("small").textContent = dealerTurn ? "ディーラーが止まる" : "勝負する";
     this.els["round-status"].textContent = dealerTurn ? "DEALER TURN" : "PLAYER TURN";
-    this.els["dealer-kicker"].textContent = dealerTurn && document.body.dataset.mode === "duo" ? "PLAYER 2" : "THE HOUSE";
+    const online = document.body.dataset.mode === "online";
+    this.els["dealer-kicker"].textContent = online ? this.seatLabels({ mode: "online" }).dealer
+      : dealerTurn && document.body.dataset.mode === "duo" ? "PLAYER 2" : "THE HOUSE";
   }
 
   async showSpecial(special, actor, isAi = false) {
@@ -315,10 +337,11 @@ export class GameUI {
 
   /** ラウンドごとの表示。勝敗は出さず、いまのお互いのチップだけ見せる。 */
   showStanding(result, game) {
-    const duo = game.mode === "duo";
+    const duo = this.isVersus(game);
+    const labels = this.seatLabels(game);
     this.els["standing-kicker"].textContent = `ROUND ${result.round} / ${MATCH_ROUNDS} 終了`;
-    this.els["standing-player-label"].textContent = duo ? "PLAYER 1" : "YOU";
-    this.els["standing-dealer-label"].textContent = duo ? "PLAYER 2" : "DEALER";
+    this.els["standing-player-label"].textContent = labels.player;
+    this.els["standing-dealer-label"].textContent = labels.dealer;
     this.els["standing-player"].textContent = result.chips.player;
     this.els["standing-dealer"].textContent = result.chips.dealer;
     const setDelta = (node, value) => {
@@ -335,16 +358,19 @@ export class GameUI {
     const overlay = this.els["result-overlay"];
     const mood = result.matchOutcome ?? "draw";
     const celebrate = mood === "win";
-    const duo = game.mode === "duo";
+    const duo = this.isVersus(game);
+    const labels = this.seatLabels(game);
     overlay.className = `result-overlay is-${mood} is-final`;
-    const title = duo
-      ? (mood === "win" ? "PLAYER 1 WIN" : mood === "loss" ? "PLAYER 2 WIN" : "PUSH")
+    const title = game.mode === "online"
+      ? (mood === "win" ? "YOU WIN" : mood === "loss" ? `${labels.dealer} WIN` : "PUSH")
+      : duo
+        ? (mood === "win" ? "PLAYER 1 WIN" : mood === "loss" ? "PLAYER 2 WIN" : "PUSH")
       : (mood === "win" ? "You Win!" : mood === "loss" ? "You lose" : "PUSH");
     this.els["result-kicker"].textContent = result.bankrupt ? "CHIPS GONE" : `FINAL • ${MATCH_ROUNDS} ROUNDS`;
     this.els["result-title"].textContent = title;
     this.els["result-score"].textContent = `${result.chips.player} — ${result.chips.dealer} CHIP`;
-    const reason = result.bankrupt === "player" ? (duo ? "PLAYER 1のチップが尽きました" : "チップが尽きました")
-      : result.bankrupt === "dealer" ? (duo ? "PLAYER 2のチップが尽きました" : "相手のチップが尽きました")
+    const reason = result.bankrupt === "player" ? (duo ? `${labels.player}のチップが尽きました` : "チップが尽きました")
+      : result.bankrupt === "dealer" ? (duo ? `${labels.dealer}のチップが尽きました` : "相手のチップが尽きました")
         : "チップが多い方の勝ちです";
     this.els["result-delta"].textContent = `${reason}　まもなくメイン画面へ`;
     this.makeConfetti(celebrate);
@@ -356,12 +382,13 @@ export class GameUI {
   /** ラウンド開始前に賭け額を決めてもらう。 */
   async requestBet(game) {
     const overlay = this.els["bet-overlay"];
-    const duo = game.mode === "duo";
+    const duo = this.isVersus(game);
+    const labels = this.seatLabels(game);
     const max = game.maxWager();
     let amount = Math.min(Math.max(BET_STEP, game.baseWager), max);
     this.els["bet-round"].textContent = `ROUND ${game.matchRound + 1} / ${MATCH_ROUNDS}`;
-    this.els["bet-my-label"].textContent = duo ? "PLAYER 1" : "YOU";
-    this.els["bet-rival-label"].textContent = duo ? "PLAYER 2" : "DEALER";
+    this.els["bet-my-label"].textContent = labels.player;
+    this.els["bet-rival-label"].textContent = labels.dealer;
     this.els["bet-my-chips"].textContent = game.chips.player;
     this.els["bet-rival-chips"].textContent = game.chips.dealer;
     const presets = [...new Set([BET_STEP, 100, 200, 300].filter((value) => value < max).concat(max))];
