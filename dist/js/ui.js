@@ -128,7 +128,10 @@ export class GameUI {
 
   updateScores(game) {
     this.els["player-score"].textContent = game.score("player");
-    const visibleDealer = game.dealerRevealed || (game.mode === "duo" && game.actor === "dealer");
+    // オンライン対戦では両端末が同じ合計点を常に表示する。
+    // 以前は相手の伏せカードに合わせて最初の1枚分だけを表示していたため、
+    // HIT後の合計がSHOWDOWNまで同期していないように見えていた。
+    const visibleDealer = game.dealerRevealed || game.mode === "online" || (game.mode === "duo" && game.actor === "dealer");
     const dealerValue = visibleDealer ? game.score("dealer") : game.dealer[0] ? this.singleCardValue(game.dealer[0]) : "?";
     this.els["dealer-score"].textContent = dealerValue;
     this.els["dealer-score"].classList.toggle("is-hidden", !visibleDealer);
