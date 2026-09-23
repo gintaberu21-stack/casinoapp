@@ -68,7 +68,7 @@ export class GameUI {
     this.els["result-overlay"].hidden = true;
     this.els["result-overlay"].className = "result-overlay";
     this.els["next-card-preview"].hidden = true;
-    this.els["wager-count"].textContent = game.wager;
+    this.updateWager(game);
     this.els["round-progress"].textContent = `ROUND ${game.matchRound} / ${MATCH_ROUNDS}`;
     const labels = this.seatLabels(game);
     this.els["rival-chip-label"].textContent = labels.dealer;
@@ -134,7 +134,15 @@ export class GameUI {
     this.els["dealer-score"].classList.toggle("is-hidden", !visibleDealer);
     this.els["player-chip-count"].textContent = game.chips.player;
     this.els["dealer-chip-count"].textContent = game.chips.dealer;
-    this.els["wager-count"].textContent = game.wager;
+    this.updateWager(game);
+  }
+
+  updateWager(game) {
+    const own = game.bets?.player ?? { amount: game.wager, multiplier: 1 };
+    const rival = game.bets?.dealer ?? own;
+    this.els["wager-count"].textContent = game.mode === "online"
+      ? `${own.amount}×${own.multiplier} / ${rival.amount}×${rival.multiplier}`
+      : `${own.amount}×${own.multiplier}`;
   }
 
   async animateChipChange(game, before) {
@@ -262,7 +270,7 @@ export class GameUI {
     cards.forEach((card) => card.classList.remove("is-changing-in"));
   }
 
-  async runCoinToss(mode) {
+  async runCoinToss(mode, options = {}) {
     const overlay = this.els["coin-overlay"];
     const coin = this.els["duel-coin"];
     const choice = this.els["coin-choice"];
@@ -282,15 +290,17 @@ export class GameUI {
       this.els["coin-result"].textContent = "メダルを投げます…";
       await wait(450);
     }
-    const face = Math.random() < 0.5 ? "front" : "back";
+    const face = options.face ?? (Math.random() < 0.5 ? "front" : "back");
+    const firstActor = options.firstActor ?? (mode === "solo" ? (guess === face ? "player" : "dealer") : (face === "front" ? "player" : "dealer"));
+    options.onDecision?.({ face, firstActor });
     coin.classList.add("is-tossing", `lands-${face}`);
     this.cue("coin");
     await wait(1350);
-    const firstActor = mode === "solo" ? (guess === face ? "player" : "dealer") : (face === "front" ? "player" : "dealer");
     const faceLabel = face === "front" ? "表 ♦" : "裏 ♠";
-    const actorLabel = firstActor === "player" ? "PLAYER 1" : mode === "duo" ? "PLAYER 2" : "DEALER";
+    const versusLabels = mode === "online" ? this.seatLabels({ mode: "online" }) : { player: "PLAYER 1", dealer: "PLAYER 2" };
+    const actorLabel = mode === "solo" ? (firstActor === "player" ? "PLAYER 1" : "DEALER") : versusLabels[firstActor];
     const orderHeading = mode === "solo" ? (firstActor === "player" ? "あなたが先攻" : "あなたは後攻") : `${actorLabel}が先攻`;
-    const secondActor = firstActor === "player" ? (mode === "duo" ? "PLAYER 2" : "DEALER") : "PLAYER 1";
+    const secondActor = mode === "solo" ? (firstActor === "player" ? "DEALER" : "PLAYER 1") : versusLabels[opponentOf(firstActor)];
     choice.hidden = true;
     overlay.classList.add("is-decided");
     this.els["coin-heading"].textContent = orderHeading;
@@ -348,8 +358,8 @@ export class GameUI {
       node.textContent = value === 0 ? "±0" : `${value > 0 ? "+" : ""}${value}`;
       node.className = value > 0 ? "is-gain" : value < 0 ? "is-loss" : "";
     };
-    setDelta(this.els["standing-player-delta"], result.delta);
-    setDelta(this.els["standing-dealer-delta"], -result.delta);
+    setDelta(this.els["standing-player-delta"], result.deltas?.player ?? result.delta);
+    setDelta(this.els["standing-dealer-delta"], result.deltas?.dealer ?? -result.delta);
     this.els["standing-overlay"].hidden = false;
   }
 
@@ -380,37 +390,44 @@ export class GameUI {
   }
 
   /** ラウンド開始前に賭け額を決めてもらう。 */
-  async requestBet(game) {
+  async requestBet(game, actor = "player") {
     const overlay = this.els["bet-overlay"];
-    const duo = this.isVersus(game);
     const labels = this.seatLabels(game);
-    const max = game.maxWager();
-    let amount = Math.min(Math.max(BET_STEP, game.baseWager), max);
+    const opponent = opponentOf(actor);
+    let multiplier = game.bets?.[actor]?.multiplier ?? 1;
+    let amount = game.bets?.[actor]?.amount ?? game.baseWager;
     this.els["bet-round"].textContent = `ROUND ${game.matchRound + 1} / ${MATCH_ROUNDS}`;
-    this.els["bet-my-label"].textContent = labels.player;
-    this.els["bet-rival-label"].textContent = labels.dealer;
-    this.els["bet-my-chips"].textContent = game.chips.player;
-    this.els["bet-rival-chips"].textContent = game.chips.dealer;
-    const presets = [...new Set([BET_STEP, 100, 200, 300].filter((value) => value < max).concat(max))];
+    this.els["bet-my-label"].textContent = labels[actor];
+    this.els["bet-rival-label"].textContent = labels[opponent];
+    this.els["bet-my-chips"].textContent = game.chips[actor];
+    this.els["bet-rival-chips"].textContent = game.chips[opponent];
     const list = this.els["bet-presets"];
     const render = () => {
-      this.els["bet-amount"].textContent = amount;
+      const max = game.maxWager(actor, multiplier);
+      amount = Math.min(amount, max);
+      const presets = [...new Set([BET_STEP, 100, 200, 300, 500].filter((value) => value < max).concat(max))];
+      list.replaceChildren(...presets.map((value) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.bet = value;
+        button.dataset.cue = "select";
+        button.innerHTML = value === max ? `<span>ALL IN</span><small>${value}</small>` : `<span>${value}</span><small>CHIP</small>`;
+        button.addEventListener("click", () => { amount = value; render(); });
+        return button;
+      }));
+      this.els["bet-amount"].textContent = `${amount} ×${multiplier}`;
+      this.els["bet-total-note"].textContent = `勝敗時の増減：${amount * multiplier} CHIP`;
       list.querySelectorAll("button").forEach((button) => button.classList.toggle("is-selected", Number(button.dataset.bet) === amount));
+      this.els["bet-multipliers"].querySelectorAll("button").forEach((button) => button.classList.toggle("is-selected", Number(button.dataset.multiplier) === multiplier));
     };
-    list.replaceChildren(...presets.map((value) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.bet = value;
-      button.dataset.cue = "select";
-      button.innerHTML = value === max ? `<span>ALL IN</span><small>${value}</small>` : `<span>${value}</span><small>CHIP</small>`;
-      button.addEventListener("click", () => { amount = value; render(); });
-      return button;
-    }));
+    this.els["bet-multipliers"].querySelectorAll("button").forEach((button) => {
+      button.onclick = () => { multiplier = Number(button.dataset.multiplier); render(); };
+    });
     render();
     overlay.hidden = false;
     await new Promise((resolve) => this.els["bet-confirm"].addEventListener("click", resolve, { once: true }));
     overlay.hidden = true;
-    return amount;
+    return { amount, multiplier };
   }
 
   makeConfetti(show) {

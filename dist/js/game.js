@@ -16,6 +16,10 @@ export class CasinoDuelGame {
     this.difficulty = "normal";
     this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
     this.baseWager = 100;
+    this.bets = {
+      player: { amount: 100, multiplier: 1 },
+      dealer: { amount: 100, multiplier: 1 },
+    };
     this.skills = { player: [], dealer: [] };
     this.matchRound = 0;
     this.matchWins = { player: 0, dealer: 0 };
@@ -40,6 +44,7 @@ export class CasinoDuelGame {
       chips: swapPair(this.chips),
       baseWager: this.baseWager,
       wager: this.wager,
+      bets: swapPair(this.bets),
       skills: swapPair(this.skills),
       matchRound: this.matchRound,
       matchWins: swapPair(this.matchWins),
@@ -59,7 +64,7 @@ export class CasinoDuelGame {
   /** ゲスト端末はゲーム計算をせず、ホストから届いた状態だけを表示する。 */
   restore(snapshot) {
     const fields = [
-      "mode", "difficulty", "chips", "baseWager", "wager", "skills", "matchRound",
+      "mode", "difficulty", "chips", "baseWager", "wager", "bets", "skills", "matchRound",
       "matchWins", "player", "dealer", "reservedCard", "stood", "autoStood",
       "lossShield", "locked", "phase", "actor", "dealerRevealed",
     ];
@@ -91,26 +96,55 @@ export class CasinoDuelGame {
     this.matchRound = 0;
     this.matchWins = { player: 0, dealer: 0 };
     this.baseWager = 100;
+    this.bets = {
+      player: { amount: 100, multiplier: 1 },
+      dealer: { amount: 100, multiplier: 1 },
+    };
   }
 
   /** そのラウンドに賭けられる上限。相手が払えない額は賭けられない。 */
-  maxWager() {
-    return Math.max(BET_STEP, Math.min(this.chips.player, this.chips.dealer));
+  maxWager(actor = "player", multiplier = 1) {
+    const safeMultiplier = Math.max(1, Math.min(3, Number(multiplier) || 1));
+    return Math.max(BET_STEP, Math.floor(this.chips[actor] / safeMultiplier / BET_STEP) * BET_STEP);
   }
 
   /** ベット額を決める。下限はBET_STEP、上限は双方の残高。 */
   setWager(amount) {
-    const limit = this.maxWager();
+    const limit = this.maxWager("player", 1);
     const stepped = Math.round(amount / BET_STEP) * BET_STEP;
     this.baseWager = Math.min(limit, Math.max(BET_STEP, stepped));
     this.wager = this.baseWager;
+    this.setBet("player", { amount: this.baseWager, multiplier: 1 });
+    this.setBet("dealer", { amount: this.baseWager, multiplier: 1 });
     return this.baseWager;
   }
 
+  /** 各プレイヤーが自分の残高内で、金額と倍率を別々に決める。 */
+  setBet(actor, selection = {}) {
+    const multiplier = Math.max(1, Math.min(3, Math.round(Number(selection.multiplier) || 1)));
+    const limit = this.maxWager(actor, multiplier);
+    const stepped = Math.round((Number(selection.amount) || BET_STEP) / BET_STEP) * BET_STEP;
+    const amount = Math.min(limit, Math.max(BET_STEP, stepped));
+    this.bets[actor] = { amount, multiplier };
+    if (actor === "player") {
+      this.baseWager = amount;
+      this.wager = amount * multiplier;
+    }
+    return { ...this.bets[actor] };
+  }
+
+  wagerFor(actor) {
+    const bet = this.bets[actor] ?? { amount: this.baseWager, multiplier: 1 };
+    return bet.amount * bet.multiplier;
+  }
+
   /** 賭け額を倍にする必殺技用。相手が払えない分までは増やさない。 */
-  multiplyWager(factor) {
-    this.wager = Math.min(this.maxWager(), this.wager * factor);
-    return this.wager;
+  multiplyWager(factor, actor = "player") {
+    const bet = this.bets[actor] ?? { amount: this.baseWager, multiplier: 1 };
+    bet.multiplier *= factor;
+    this.bets[actor] = bet;
+    if (actor === "player") this.wager = this.wagerFor(actor);
+    return this.wagerFor(actor);
   }
 
   startRound(firstActor) {
@@ -179,8 +213,8 @@ export class CasinoDuelGame {
     const opponent = opponentOf(actor);
     const result = { ok: true, skill, actor, opponent };
 
-    if (id === "double") result.wager = this.multiplyWager(2);
-    if (id === "triple") result.wager = this.multiplyWager(3);
+    if (id === "double") result.wager = this.multiplyWager(2, actor);
+    if (id === "triple") result.wager = this.multiplyWager(3, actor);
     if (id === "shield") this.lossShield[actor] = true;
     if (id === "peek") this.reservedCard[actor] = this.drawCard();
     if (id === "selectReverse") {
@@ -253,13 +287,21 @@ export class CasinoDuelGame {
     else if (dealer > 21 || player > dealer) outcome = "win";
     else if (dealer > player) outcome = "loss";
 
-    let amount = blackjack ? Math.round(this.wager * 1.5) : this.wager;
+    const stakes = {
+      player: blackjack ? Math.round(this.wagerFor("player") * 1.5) : this.wagerFor("player"),
+      dealer: this.wagerFor("dealer"),
+    };
     const loser = outcome === "win" ? "dealer" : outcome === "loss" ? "player" : null;
-    if (loser && this.lossShield[loser]) amount = Math.max(0, amount - 100);
-    if (loser) amount = Math.min(amount, this.chips[loser]);
-    const delta = outcome === "win" ? amount : outcome === "loss" ? -amount : 0;
-    this.chips.player += delta;
-    this.chips.dealer -= delta;
+    if (loser && this.lossShield[loser]) stakes[loser] = Math.max(0, stakes[loser] - 100);
+    if (loser) stakes[loser] = Math.min(stakes[loser], this.chips[loser]);
+    const deltas = outcome === "win"
+      ? { player: stakes.player, dealer: -stakes.dealer }
+      : outcome === "loss"
+        ? { player: -stakes.player, dealer: stakes.dealer }
+        : { player: 0, dealer: 0 };
+    this.chips.player += deltas.player;
+    this.chips.dealer += deltas.dealer;
+    const delta = deltas.player;
     this.phase = "settled";
     this.dealerRevealed = true;
     if (outcome === "win") this.matchWins.player += 1;
@@ -268,9 +310,10 @@ export class CasinoDuelGame {
     const bankrupt = this.chips.player <= 0 ? "player" : this.chips.dealer <= 0 ? "dealer" : null;
     const matchComplete = Boolean(bankrupt) || this.matchRound >= MATCH_ROUNDS;
     return {
-      outcome, blackjack, player, dealer, delta, bankrupt, matchComplete,
+      outcome, blackjack, player, dealer, delta, deltas, stakes, bankrupt, matchComplete,
       shielded: Boolean(loser && this.lossShield[loser]),
-      wager: this.wager,
+      wager: this.wagerFor("player"),
+      bets: structuredClone(this.bets),
       round: this.matchRound,
       matchWins: { ...this.matchWins },
       chips: { ...this.chips },

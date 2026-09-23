@@ -73,6 +73,10 @@
 .bet-presets button:hover{transform:translateY(-2px);border-color:var(--gold)}
 .bet-presets button.is-selected{color:#1e1204;background:linear-gradient(115deg,#c79226,#ffe59a 55%,#c08e21);border-color:#fff0aa}
 .bet-presets button.is-selected small{color:#3f2a05}
+.bet-multiplier-label{margin:2px 0 8px!important;color:var(--muted)!important;font:700 .62rem Arial,sans-serif!important;letter-spacing:.14em!important}
+.bet-multipliers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.bet-multipliers button{min-height:46px;color:var(--cream);background:rgba(8,5,6,.6);border:1px solid rgba(217,174,66,.28);border-radius:7px;cursor:pointer;font:800 1.05rem Arial,sans-serif}
+.bet-multipliers button.is-selected{color:#1e1204;background:linear-gradient(115deg,#c79226,#ffe59a 55%,#c08e21);border-color:#fff0aa;box-shadow:0 0 15px rgba(255,220,119,.22)}
 .bet-panel .start-button{width:100%}
 
 /* ラウンドごとのチップ表示（勝敗は出さない） */

@@ -18,11 +18,13 @@ let busy = false;
 let cpuSpecialUsed = false;
 let onlineRole = null;
 let onlinePendingSpecial = null;
+let pendingGuestBetResolve = null;
 let guestRenderedRound = 0;
 let guestStateQueue = Promise.resolve();
 
 const isOnline = () => Boolean(onlineRole);
 const isOnlineHost = () => onlineRole === "host";
+const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
 const invertOutcome = (outcome) => outcome === "win" ? "loss" : outcome === "loss" ? "win" : outcome;
 
 function resultForGuest(result) {
@@ -33,7 +35,10 @@ function resultForGuest(result) {
     outcome: invertOutcome(result.outcome),
     player: result.dealer,
     dealer: result.player,
-    delta: -result.delta,
+    delta: result.deltas?.dealer ?? -result.delta,
+    deltas: swap(result.deltas),
+    stakes: swap(result.stakes),
+    bets: swap(result.bets),
     bankrupt: result.bankrupt === "player" ? "dealer" : result.bankrupt === "dealer" ? "player" : null,
     chips: swap(result.chips),
     matchWins: swap(result.matchWins),
@@ -41,12 +46,13 @@ function resultForGuest(result) {
   };
 }
 
-function syncState(event = "state", result = null) {
+function syncState(event = "state", result = null, action = null) {
   if (!isOnlineHost()) return;
   matchService.sendState({
     event,
     state: game.snapshot({ swapSeats: true }),
     result: resultForGuest(result),
+    action,
   });
 }
 
@@ -101,8 +107,27 @@ async function beginRound() {
   busy = true;
   cpuSpecialUsed = false;
   ui.els["standing-overlay"].hidden = true;
-  game.setWager(await ui.requestBet(game));
-  const firstActor = await ui.runCoinToss(game.mode);
+  if (isOnlineHost()) {
+    game.setBet("player", await ui.requestBet(game, "player"));
+    const guestBet = new Promise((resolve) => { pendingGuestBetResolve = resolve; });
+    ui.els["round-status"].textContent = "PLAYER 2 BETTING";
+    syncState("betRequest");
+    game.setBet("dealer", await guestBet);
+    pendingGuestBetResolve = null;
+    syncState("betsLocked");
+  } else if (game.mode === "duo") {
+    game.setBet("player", await ui.requestBet(game, "player"));
+    game.setBet("dealer", await ui.requestBet(game, "dealer"));
+  } else {
+    const bet = await ui.requestBet(game, "player");
+    game.setBet("player", bet);
+    game.setBet("dealer", bet);
+  }
+  const firstActor = await ui.runCoinToss(game.mode, {
+    onDecision: isOnlineHost() ? ({ face, firstActor: hostFirst }) => {
+      syncState("coinToss", null, { face, firstActor: opponentOf(hostFirst) });
+    } : null,
+  });
   game.startRound(firstActor);
   if (game.mode === "duo") await ui.requestHandoff(firstActor);
   ui.prepareRound(game, useSpecial);
@@ -174,6 +199,7 @@ async function performHit(isAi = false) {
   busy = true;
   ui.setActions(false, actor);
   const card = game.hit(actor);
+  syncState("hit", null, { actor: opponentOf(actor), card: structuredClone(card) });
   await ui.addCard(game, actor, card);
   if (isAi) {
     ui.toast(`CPUは ${card.symbol}${card.rank} を引いた`);
@@ -195,6 +221,7 @@ async function performStand(isAi = false) {
   const actor = game.actor;
   busy = true;
   game.stood[actor] = true;
+  syncState("stand", null, { actor: opponentOf(actor) });
   clearTurnLock(actor);
   ui.setActions(false, actor);
   if (isAi) await wait(CPU_PACE.afterAction);
@@ -247,6 +274,7 @@ async function executeSpecial(id, isAi, supplied = null) {
   let actorCardId;
   let opponentCardId;
   const chipsBefore = { ...game.chips };
+  syncState("specialStart", null, { id, actor: opponentOf(actor) });
   await ui.showSpecial(special, actor, isAi);
   if (id === "selectReverse") cardId = supplied?.cardId ?? (isAi ? highestCardId(game[opponent]) : await ui.chooseOpponentCard(game[opponent]));
   if (id === "shuffle") {
@@ -283,8 +311,9 @@ async function executeSpecial(id, isAi, supplied = null) {
   }
   await ui.animateChipChange(game, chipsBefore);
   ui.renderSpecials(game);
+  syncState("specialResult");
   const messages = {
-    double: `勝負額が2倍の${game.wager}チップに!`, triple: `勝負額が3倍の${game.wager}チップに!`,
+    double: `勝負額が2倍の${result.wager}チップに!`, triple: `勝負額が3倍の${result.wager}チップに!`,
     shield: "敗北時の損失を100軽減!", peek: "次に自分が引くカードを確保!",
     selectReverse: "選んだカードを捨てた!", shuffle: "選んだカードを1枚ずつ交換!",
     extraDraw: "1枚引いて、選んだ手札を捨てた!", lock: "相手の次ターンの必殺技を封印!",
@@ -306,6 +335,7 @@ async function finishRound() {
   ui.els["round-status"].textContent = "SHOWDOWN";
   await wait(800);
   await ui.revealDealer(game);
+  syncState("showdown");
   await wait(700);
   const chipsBefore = { ...game.chips };
   const result = game.settle();
@@ -341,6 +371,7 @@ function returnToLobby() {
   matchService.cancel();
   onlineRole = null;
   onlinePendingSpecial = null;
+  pendingGuestBetResolve = null;
   guestRenderedRound = 0;
   guestStateQueue = Promise.resolve();
   ui.setOnlineRole(null);
@@ -362,6 +393,12 @@ async function sendGuestSpecial(id) {
 }
 
 async function handleRemoteAction(action) {
+  if (isOnlineHost() && action.type === "bet" && pendingGuestBetResolve) {
+    const resolve = pendingGuestBetResolve;
+    pendingGuestBetResolve = null;
+    resolve(action.bet ?? {});
+    return;
+  }
   if (!isOnlineHost() || game.phase !== "playing" || game.actor !== "dealer" || busy) return;
   if (action.type === "hit") { await performHit(false); return; }
   if (action.type === "stand") { await performStand(false); return; }
@@ -388,12 +425,36 @@ async function receiveHostState(payload) {
   const newRound = payload.state.matchRound !== guestRenderedRound;
   game.restore(payload.state);
   document.body.dataset.mode = "online";
+  if (payload.event === "betRequest") {
+    busy = true;
+    ui.els["standing-overlay"].hidden = true;
+    const bet = await ui.requestBet(game, "player");
+    game.setBet("player", bet);
+    matchService.sendAction({ type: "bet", bet });
+    ui.els["round-status"].textContent = "HOST BETTING";
+    ui.toast("ベットを確定しました。相手を待っています…");
+    return;
+  }
+  if (payload.event === "specialStart") {
+    const special = getSpecial(payload.action?.id);
+    if (special) await ui.showSpecial(special, payload.action?.actor ?? game.actor, false);
+    return;
+  }
+  if (payload.event === "coinToss") {
+    busy = true;
+    await ui.runCoinToss("online", payload.action ?? {});
+    return;
+  }
   if (newRound) {
     guestRenderedRound = game.matchRound;
     ui.els["standing-overlay"].hidden = true;
     ui.prepareRound(game, useSpecial);
     // ホストから roundStart と turn が続けて届くため、ゲストは確定盤面を一度だけ描画する。
     ui.renderHands(game);
+  } else if (payload.event === "hit" && payload.action?.card) {
+    await ui.addCard(game, payload.action.actor, payload.action.card);
+    ui.renderSpecials(game);
+    await ui.animateChipChange(game, before);
   } else {
     ui.renderHands(game);
     ui.renderSpecials(game);
@@ -419,7 +480,15 @@ async function receiveHostState(payload) {
     setTimeout(returnToLobby, 6000);
     return;
   }
+  if (["hit", "stand", "specialResult", "showdown", "betsLocked"].includes(payload.event)) {
+    ui.setActions(false, game.actor);
+    ui.els["round-status"].textContent = payload.event === "showdown" ? "SHOWDOWN" : "SYNCING...";
+    busy = true;
+    return;
+  }
   const myTurn = game.phase === "playing" && game.actor === "player";
+  ui.els["standing-next"].disabled = false;
+  ui.els["standing-next"].innerHTML = "<span>NEXT ROUND</span><small>次のラウンドへ</small>";
   ui.setActions(myTurn, game.actor);
   ui.renderSpecials(game);
   ui.els["round-status"].textContent = myTurn ? "YOUR TURN" : "PLAYER 1 TURN";
