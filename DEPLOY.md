@@ -52,8 +52,6 @@ mongodb+srv://ユーザー名:パスワード@クラスタ名.xxxxx.mongodb.net/
    |---|---|
    | `MONGODB_URI` | 手順2でコピーした接続文字列 |
    | `MONGODB_DB` | `casino_duel` |
-   | `ACCESS_CODE` | 友だちへ共有する合言葉 |
-   | `ACCESS_TOKEN_SECRET` | Render側で自動生成 |
 
 5. **Create Web Service** を押すとビルドとデプロイが始まります
 
@@ -65,7 +63,7 @@ mongodb+srv://ユーザー名:パスワード@クラスタ名.xxxxx.mongodb.net/
 
 - `https://<URL>/healthz` を開いて `{"ok":true,"storage":"mongodb"}` と出れば **MongoDB接続まで成功**
   - `"storage":"memory"` の場合は `MONGODB_URI` が読めていません（環境変数のスペルか、Atlas の Network Access を確認）
-- トップページでは最初に合言葉画面が出ます。正しい合言葉で入場できることを確認します
+- トップページが合言葉なしで直接開くことを確認します
 - 「ふたりで対決」→ 右上に自分のIDが出れば **WebSocket接続も成功**
 - **スマホ2台**で開き、片方のIDをもう片方で検索 → 申し込み → 承認 → 同じ部屋に入れることを確認
 
