@@ -137,6 +137,12 @@ export class GameUI {
     this.els["dealer-score"].classList.toggle("is-hidden", !visibleDealer);
     this.els["player-chip-count"].textContent = game.chips.player;
     this.els["dealer-chip-count"].textContent = game.chips.dealer;
+    ["player", "dealer"].forEach((actor) => {
+      const debt = game.debts?.[actor] ?? 0;
+      const node = this.els[`${actor}-debt-count`];
+      node.textContent = `借金 ${debt}`;
+      node.hidden = debt <= 0;
+    });
     this.updateWager(game);
   }
 
@@ -355,8 +361,9 @@ export class GameUI {
     this.els["standing-kicker"].textContent = `GAME ${result.round} / ${MATCH_ROUNDS} 終了`;
     this.els["standing-player-label"].textContent = labels.player;
     this.els["standing-dealer-label"].textContent = labels.dealer;
-    this.els["standing-player"].textContent = result.chips.player;
-    this.els["standing-dealer"].textContent = result.chips.dealer;
+    const balanceLabel = (actor) => `${result.chips[actor]}${result.debts?.[actor] ? `（借金${result.debts[actor]}）` : ""}`;
+    this.els["standing-player"].textContent = balanceLabel("player");
+    this.els["standing-dealer"].textContent = balanceLabel("dealer");
     const setDelta = (node, value) => {
       node.textContent = value === 0 ? "±0" : `${value > 0 ? "+" : ""}${value}`;
       node.className = value > 0 ? "is-gain" : value < 0 ? "is-loss" : "";
@@ -366,7 +373,7 @@ export class GameUI {
     this.els["standing-overlay"].hidden = false;
   }
 
-  /** 試合の最後だけ出す勝敗画面。勝敗は最終的なチップの多さで決まる。 */
+  /** 試合の最後だけ出す勝敗画面。借金を差し引いた純資産で勝敗を決める。 */
   showResult(result, game) {
     const overlay = this.els["result-overlay"];
     const mood = result.matchOutcome ?? "draw";
@@ -379,12 +386,11 @@ export class GameUI {
       : duo
         ? (mood === "win" ? "PLAYER 1 WIN" : mood === "loss" ? "PLAYER 2 WIN" : "PUSH")
       : (mood === "win" ? "You Win!" : mood === "loss" ? "You lose" : "PUSH");
-    this.els["result-kicker"].textContent = result.bankrupt ? "CHIPS GONE" : `FINAL • ${MATCH_ROUNDS} GAMES`;
+    this.els["result-kicker"].textContent = `FINAL • ${MATCH_ROUNDS} GAMES`;
     this.els["result-title"].textContent = title;
-    this.els["result-score"].textContent = `${result.chips.player} — ${result.chips.dealer} CHIP`;
-    const reason = result.bankrupt === "player" ? (duo ? `${labels.player}のチップが尽きました` : "チップが尽きました")
-      : result.bankrupt === "dealer" ? (duo ? `${labels.dealer}のチップが尽きました` : "相手のチップが尽きました")
-        : "チップが多い方の勝ちです";
+    const debt = result.debts ?? { player: 0, dealer: 0 };
+    this.els["result-score"].textContent = `${result.chips.player}（借金${debt.player}） — ${result.chips.dealer}（借金${debt.dealer}）`;
+    const reason = "所持チップから借金を引いたポイントが多い方の勝ちです";
     this.els["result-delta"].textContent = `${reason}　もう一回かロビー退出を選んでください`;
     this.els["result-rematch"].disabled = false;
     this.els["result-rematch"].textContent = "もう一回";
@@ -409,20 +415,20 @@ export class GameUI {
     this.els["bet-rival-chips"].textContent = game.chips[opponent];
     const list = this.els["bet-presets"];
     const render = () => {
-      const max = game.maxWager(actor, multiplier);
+      const max = game.maxWager(actor);
       amount = Math.min(amount, max);
-      const presets = [...new Set([BET_STEP, 100, 200, 300, 500].filter((value) => value < max).concat(max))];
+      const presets = [...new Set([BET_STEP, 100, 150, 250, 500].filter((value) => value < max).concat(max))];
       list.replaceChildren(...presets.map((value) => {
         const button = document.createElement("button");
         button.type = "button";
         button.dataset.bet = value;
         button.dataset.cue = "select";
-        button.innerHTML = value === max ? `<span>ALL IN</span><small>${value}</small>` : `<span>${value}</span><small>CHIP</small>`;
+        button.innerHTML = value === max ? `<span>MAX</span><small>${value}</small>` : `<span>${value}</span><small>CHIP</small>`;
         button.addEventListener("click", () => { amount = value; render(); });
         return button;
       }));
       this.els["bet-amount"].textContent = `${amount} ×${multiplier}`;
-      this.els["bet-total-note"].textContent = `勝敗時の増減：${amount * multiplier} CHIP`;
+      this.els["bet-total-note"].textContent = `勝ち/負けポイント：±${amount * multiplier} CHIP`;
       list.querySelectorAll("button").forEach((button) => button.classList.toggle("is-selected", Number(button.dataset.bet) === amount));
       this.els["bet-multipliers"].querySelectorAll("button").forEach((button) => button.classList.toggle("is-selected", Number(button.dataset.multiplier) === multiplier));
     };
@@ -434,6 +440,22 @@ export class GameUI {
     await new Promise((resolve) => this.els["bet-confirm"].addEventListener("click", resolve, { once: true }));
     overlay.hidden = true;
     return { amount, multiplier };
+  }
+
+  /** 破産した本人にだけ、退出か500チップの借り入れ継続かを選ばせる。 */
+  async requestDebtChoice(game, actor = "player") {
+    const labels = this.seatLabels(game);
+    this.els["debt-owner"].textContent = `${labels[actor]}のチップが0以下になりました`;
+    this.els["debt-balance"].textContent = `${game.chips[actor]} CHIP`;
+    this.els["debt-total"].textContent = `現在の借金 ${game.debts?.[actor] ?? 0} CHIP`;
+    const overlay = this.els["debt-overlay"];
+    overlay.hidden = false;
+    const choice = await new Promise((resolve) => {
+      this.els["debt-continue"].addEventListener("click", () => resolve(true), { once: true });
+      this.els["debt-lobby"].addEventListener("click", () => resolve(false), { once: true });
+    });
+    overlay.hidden = true;
+    return choice;
   }
 
   makeConfetti(show) {

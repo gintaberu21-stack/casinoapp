@@ -19,6 +19,7 @@ let cpuSpecialUsed = false;
 let onlineRole = null;
 let onlinePendingSpecial = null;
 let pendingGuestBetResolve = null;
+let pendingGuestDebtResolve = null;
 let guestRenderedRound = 0;
 let guestStateQueue = Promise.resolve();
 let localRematchReady = false;
@@ -40,10 +41,15 @@ function resultForGuest(result) {
     dealer: result.player,
     delta: result.deltas?.dealer ?? -result.delta,
     deltas: swap(result.deltas),
+    grossDeltas: swap(result.grossDeltas),
+    repayments: swap(result.repayments),
     stakes: swap(result.stakes),
     bets: swap(result.bets),
     bankrupt: result.bankrupt === "player" ? "dealer" : result.bankrupt === "dealer" ? "player" : null,
     chips: swap(result.chips),
+    debts: swap(result.debts),
+    netWorth: swap(result.netWorth),
+    needsLoan: result.needsLoan?.map(opponentOf),
     matchWins: swap(result.matchWins),
     matchOutcome: invertOutcome(result.matchOutcome),
   };
@@ -348,6 +354,8 @@ async function finishRound() {
   const result = game.settle();
   ui.renderHands(game);
   await ui.animateChipChange(game, chipsBefore);
+  if (!(await resolveDebtChoices(result))) return;
+  refreshResultBalances(result);
   await wait(1300);
   // ラウンドごとは勝敗を出さず、チップの状況だけ見せる。勝敗画面は試合の最後だけ。
   if (result.matchComplete) {
@@ -365,6 +373,53 @@ async function finishRound() {
   busy = false;
 }
 
+function refreshResultBalances(result) {
+  result.chips = { ...game.chips };
+  result.debts = { ...game.debts };
+  result.needsLoan = ["player", "dealer"].filter((actor) => game.chips[actor] <= 0);
+  result.bankrupt = result.needsLoan[0] ?? null;
+  result.netWorth = {
+    player: game.chips.player - game.debts.player,
+    dealer: game.chips.dealer - game.debts.dealer,
+  };
+  if (result.matchComplete) {
+    result.matchOutcome = result.netWorth.player > result.netWorth.dealer ? "win"
+      : result.netWorth.player < result.netWorth.dealer ? "loss" : "draw";
+  }
+}
+
+async function resolveDebtChoices(result) {
+  for (const actor of ["player", "dealer"]) {
+    while (game.chips[actor] <= 0) {
+      let shouldContinue = true;
+      if (isOnlineHost() && actor === "dealer") {
+        const guestChoice = new Promise((resolve) => { pendingGuestDebtResolve = resolve; });
+        syncState("debtDecision", result, { actor: "player" });
+        shouldContinue = await guestChoice;
+        pendingGuestDebtResolve = null;
+      } else if (actor === "player" || game.mode === "duo") {
+        shouldContinue = await ui.requestDebtChoice(game, actor);
+      } else {
+        ui.toast("CPUが500チップを借りて続行します");
+        await wait(900);
+      }
+      if (!shouldContinue) {
+        if (isOnlineHost()) syncState("matchCancelled", result);
+        returnToLobby();
+        return false;
+      }
+      const beforeLoan = { ...game.chips };
+      game.takeLoan(actor);
+      refreshResultBalances(result);
+      ui.updateScores(game);
+      await ui.animateChipChange(game, beforeLoan);
+      ui.toast(`${actor === "player" ? "自分" : "相手"}に500 CHIP追加・借金500`);
+      syncState("debtUpdated", result);
+    }
+  }
+  return true;
+}
+
 async function nextRound() {
   await beginRound();
 }
@@ -372,11 +427,12 @@ async function nextRound() {
 function returnToLobby() {
   busy = false;
   game.phase = "idle";
-  ["result-overlay", "handoff-overlay", "special-overlay", "coin-overlay", "select-card-overlay", "invite-overlay", "room-overlay", "bet-overlay", "standing-overlay"].forEach((id) => { ui.els[id].hidden = true; });
+  ["result-overlay", "handoff-overlay", "special-overlay", "coin-overlay", "select-card-overlay", "invite-overlay", "room-overlay", "bet-overlay", "standing-overlay", "debt-overlay"].forEach((id) => { ui.els[id].hidden = true; });
   matchService.cancel();
   onlineRole = null;
   onlinePendingSpecial = null;
   pendingGuestBetResolve = null;
+  pendingGuestDebtResolve = null;
   guestRenderedRound = 0;
   guestStateQueue = Promise.resolve();
   localRematchReady = false;
@@ -437,6 +493,12 @@ async function handleRemoteAction(action) {
     resolve(action.bet ?? {});
     return;
   }
+  if (isOnlineHost() && action.type === "debtDecision" && pendingGuestDebtResolve) {
+    const resolve = pendingGuestDebtResolve;
+    pendingGuestDebtResolve = null;
+    resolve(Boolean(action.continue));
+    return;
+  }
   if (!isOnlineHost() || game.phase !== "playing" || game.actor !== "dealer" || busy) return;
   if (action.type === "hit") { await performHit(false); return; }
   if (action.type === "stand") { await performStand(false); return; }
@@ -471,6 +533,19 @@ async function receiveHostState(payload) {
     matchService.sendAction({ type: "bet", bet });
     ui.els["round-status"].textContent = "HOST BETTING";
     ui.toast("ベットを確定しました。相手を待っています…");
+    return;
+  }
+  if (payload.event === "debtDecision") {
+    busy = true;
+    const shouldContinue = await ui.requestDebtChoice(game, "player");
+    matchService.sendAction({ type: "debtDecision", continue: shouldContinue });
+    if (!shouldContinue) returnToLobby();
+    else ui.els["round-status"].textContent = "LOAN PROCESSING";
+    return;
+  }
+  if (payload.event === "matchCancelled") {
+    ui.toast("対戦相手がロビーへ退出しました");
+    returnToLobby();
     return;
   }
   if (payload.event === "specialStart") {
@@ -517,7 +592,7 @@ async function receiveHostState(payload) {
     busy = true;
     return;
   }
-  if (["hit", "stand", "specialResult", "showdown", "betsLocked"].includes(payload.event)) {
+  if (["hit", "stand", "specialResult", "showdown", "betsLocked", "debtUpdated"].includes(payload.event)) {
     ui.setActions(false, game.actor);
     ui.els["round-status"].textContent = payload.event === "showdown" ? "SHOWDOWN" : "SYNCING...";
     busy = true;

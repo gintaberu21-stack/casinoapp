@@ -9,12 +9,16 @@ export const MATCH_ROUNDS = 3;
 export const STARTING_CHIPS = 500;
 /** ベットの最小単位。 */
 export const BET_STEP = 50;
+/** 各ゲームで選べる基本ベット上限。倍率は勝敗ポイントへ別途掛かる。 */
+export const BET_CAPS = [150, 250, 500];
+export const LOAN_AMOUNT = 500;
 
 export class CasinoDuelGame {
   constructor() {
     this.mode = "solo";
     this.difficulty = "normal";
     this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
+    this.debts = { player: 0, dealer: 0 };
     this.baseWager = 100;
     this.bets = {
       player: { amount: 100, multiplier: 1 },
@@ -42,6 +46,7 @@ export class CasinoDuelGame {
       mode: "online",
       difficulty: this.difficulty,
       chips: swapPair(this.chips),
+      debts: swapPair(this.debts),
       baseWager: this.baseWager,
       wager: this.wager,
       bets: swapPair(this.bets),
@@ -64,7 +69,7 @@ export class CasinoDuelGame {
   /** ゲスト端末はゲーム計算をせず、ホストから届いた状態だけを表示する。 */
   restore(snapshot) {
     const fields = [
-      "mode", "difficulty", "chips", "baseWager", "wager", "bets", "skills", "matchRound",
+      "mode", "difficulty", "chips", "debts", "baseWager", "wager", "bets", "skills", "matchRound",
       "matchWins", "player", "dealer", "reservedCard", "stood", "autoStood",
       "lossShield", "locked", "phase", "actor", "dealerRevealed",
     ];
@@ -92,6 +97,7 @@ export class CasinoDuelGame {
 
   startMatch() {
     this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
+    this.debts = { player: 0, dealer: 0 };
     this.skills = dealSpecials();
     this.matchRound = 0;
     this.matchWins = { player: 0, dealer: 0 };
@@ -102,10 +108,11 @@ export class CasinoDuelGame {
     };
   }
 
-  /** そのラウンドに賭けられる上限。相手が払えない額は賭けられない。 */
-  maxWager(actor = "player", multiplier = 1) {
-    const safeMultiplier = Math.max(1, Math.min(3, Number(multiplier) || 1));
-    return Math.max(BET_STEP, Math.floor(this.chips[actor] / safeMultiplier / BET_STEP) * BET_STEP);
+  /** 基本ベット上限はゲームごとに上がる。倍率はこの上限とは別に勝敗ポイントへ掛ける。 */
+  maxWager(actor = "player") {
+    const roundCap = BET_CAPS[Math.min(this.matchRound, BET_CAPS.length - 1)];
+    const affordable = Math.floor(Math.max(0, this.chips[actor]) / BET_STEP) * BET_STEP;
+    return Math.max(BET_STEP, Math.min(roundCap, affordable || BET_STEP));
   }
 
   /** ベット額を決める。下限はBET_STEP、上限は双方の残高。 */
@@ -122,7 +129,7 @@ export class CasinoDuelGame {
   /** 各プレイヤーが自分の残高内で、金額と倍率を別々に決める。 */
   setBet(actor, selection = {}) {
     const multiplier = Math.max(1, Math.min(3, Math.round(Number(selection.multiplier) || 1)));
-    const limit = this.maxWager(actor, multiplier);
+    const limit = this.maxWager(actor);
     const stepped = Math.round((Number(selection.amount) || BET_STEP) / BET_STEP) * BET_STEP;
     const amount = Math.min(limit, Math.max(BET_STEP, stepped));
     this.bets[actor] = { amount, multiplier };
@@ -293,12 +300,19 @@ export class CasinoDuelGame {
     };
     const loser = outcome === "win" ? "dealer" : outcome === "loss" ? "player" : null;
     if (loser && this.lossShield[loser]) stakes[loser] = Math.max(0, stakes[loser] - 100);
-    if (loser) stakes[loser] = Math.min(stakes[loser], this.chips[loser]);
-    const deltas = outcome === "win"
+    const grossDeltas = outcome === "win"
       ? { player: stakes.player, dealer: -stakes.dealer }
       : outcome === "loss"
         ? { player: -stakes.player, dealer: stakes.dealer }
         : { player: 0, dealer: 0 };
+    const repayments = { player: 0, dealer: 0 };
+    const deltas = { ...grossDeltas };
+    ["player", "dealer"].forEach((actor) => {
+      if (deltas[actor] <= 0 || this.debts[actor] <= 0) return;
+      repayments[actor] = Math.min(deltas[actor], this.debts[actor]);
+      this.debts[actor] -= repayments[actor];
+      deltas[actor] -= repayments[actor];
+    });
     this.chips.player += deltas.player;
     this.chips.dealer += deltas.dealer;
     const delta = deltas.player;
@@ -306,21 +320,34 @@ export class CasinoDuelGame {
     this.dealerRevealed = true;
     if (outcome === "win") this.matchWins.player += 1;
     if (outcome === "loss") this.matchWins.dealer += 1;
-    // チップが尽きたらその時点で敗北。残っていれば規定ラウンドまで続ける。
-    const bankrupt = this.chips.player <= 0 ? "player" : this.chips.dealer <= 0 ? "dealer" : null;
-    const matchComplete = Boolean(bankrupt) || this.matchRound >= MATCH_ROUNDS;
+    const needsLoan = ["player", "dealer"].filter((actor) => this.chips[actor] <= 0);
+    const bankrupt = needsLoan[0] ?? null;
+    const matchComplete = this.matchRound >= MATCH_ROUNDS;
+    const netWorth = {
+      player: this.chips.player - this.debts.player,
+      dealer: this.chips.dealer - this.debts.dealer,
+    };
     return {
-      outcome, blackjack, player, dealer, delta, deltas, stakes, bankrupt, matchComplete,
+      outcome, blackjack, player, dealer, delta, deltas, grossDeltas, repayments, stakes,
+      bankrupt, needsLoan, matchComplete, netWorth,
       shielded: Boolean(loser && this.lossShield[loser]),
       wager: this.wagerFor("player"),
       bets: structuredClone(this.bets),
       round: this.matchRound,
       matchWins: { ...this.matchWins },
       chips: { ...this.chips },
-      // 勝敗はラウンド数ではなく最終的なチップの多さで決まる。
+      debts: { ...this.debts },
+      // 借金で順位が有利にならないよう、最終的な純資産で決める。
       matchOutcome: !matchComplete ? null
-        : this.chips.player > this.chips.dealer ? "win"
-          : this.chips.player < this.chips.dealer ? "loss" : "draw",
+        : netWorth.player > netWorth.dealer ? "win"
+          : netWorth.player < netWorth.dealer ? "loss" : "draw",
     };
+  }
+
+  /** チップ切れから続行するため、500チップを借りる。 */
+  takeLoan(actor, amount = LOAN_AMOUNT) {
+    this.chips[actor] += amount;
+    this.debts[actor] += amount;
+    return { chips: this.chips[actor], debt: this.debts[actor], amount };
   }
 }
