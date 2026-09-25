@@ -69,7 +69,7 @@ export class GameUI {
     this.els["result-overlay"].className = "result-overlay";
     this.els["next-card-preview"].hidden = true;
     this.updateWager(game);
-    this.els["round-progress"].textContent = `ROUND ${game.matchRound} / ${MATCH_ROUNDS}`;
+    this.els["round-progress"].textContent = `GAME ${game.matchRound} / ${MATCH_ROUNDS}`;
     const labels = this.seatLabels(game);
     this.els["rival-chip-label"].textContent = labels.dealer;
     this.els["my-chip-label"].textContent = labels.player;
@@ -352,7 +352,7 @@ export class GameUI {
   showStanding(result, game) {
     const duo = this.isVersus(game);
     const labels = this.seatLabels(game);
-    this.els["standing-kicker"].textContent = `ROUND ${result.round} / ${MATCH_ROUNDS} 終了`;
+    this.els["standing-kicker"].textContent = `GAME ${result.round} / ${MATCH_ROUNDS} 終了`;
     this.els["standing-player-label"].textContent = labels.player;
     this.els["standing-dealer-label"].textContent = labels.dealer;
     this.els["standing-player"].textContent = result.chips.player;
@@ -379,13 +379,16 @@ export class GameUI {
       : duo
         ? (mood === "win" ? "PLAYER 1 WIN" : mood === "loss" ? "PLAYER 2 WIN" : "PUSH")
       : (mood === "win" ? "You Win!" : mood === "loss" ? "You lose" : "PUSH");
-    this.els["result-kicker"].textContent = result.bankrupt ? "CHIPS GONE" : `FINAL • ${MATCH_ROUNDS} ROUNDS`;
+    this.els["result-kicker"].textContent = result.bankrupt ? "CHIPS GONE" : `FINAL • ${MATCH_ROUNDS} GAMES`;
     this.els["result-title"].textContent = title;
     this.els["result-score"].textContent = `${result.chips.player} — ${result.chips.dealer} CHIP`;
     const reason = result.bankrupt === "player" ? (duo ? `${labels.player}のチップが尽きました` : "チップが尽きました")
       : result.bankrupt === "dealer" ? (duo ? `${labels.dealer}のチップが尽きました` : "相手のチップが尽きました")
         : "チップが多い方の勝ちです";
-    this.els["result-delta"].textContent = `${reason}　まもなくメイン画面へ`;
+    this.els["result-delta"].textContent = `${reason}　もう一回かロビー退出を選んでください`;
+    this.els["result-rematch"].disabled = false;
+    this.els["result-rematch"].textContent = "もう一回";
+    this.els["result-lobby"].disabled = false;
     this.makeConfetti(celebrate);
     overlay.hidden = false;
     if (mood === "loss") this.shake();
@@ -399,7 +402,7 @@ export class GameUI {
     const opponent = opponentOf(actor);
     let multiplier = game.bets?.[actor]?.multiplier ?? 1;
     let amount = game.bets?.[actor]?.amount ?? game.baseWager;
-    this.els["bet-round"].textContent = `ROUND ${game.matchRound + 1} / ${MATCH_ROUNDS}`;
+    this.els["bet-round"].textContent = `GAME ${game.matchRound + 1} / ${MATCH_ROUNDS}`;
     this.els["bet-my-label"].textContent = labels[actor];
     this.els["bet-rival-label"].textContent = labels[opponent];
     this.els["bet-my-chips"].textContent = game.chips[actor];

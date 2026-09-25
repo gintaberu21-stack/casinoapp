@@ -86,6 +86,8 @@ guest.send({ type: "action", to: hostId, payload: { type: "hit" } });
 assert.deepEqual((await host.next("action")).payload, { type: "hit" });
 guest.send({ type: "action", to: hostId, payload: { type: "bet", bet: { amount: 300, multiplier: 2 } } });
 assert.deepEqual((await host.next("action")).payload, { type: "bet", bet: { amount: 300, multiplier: 2 } });
+host.send({ type: "action", to: guestId, payload: { type: "rematch" } });
+assert.deepEqual((await guest.next("action")).payload, { type: "rematch" });
 
 const game = new CasinoDuelGame();
 game.startMatch();
@@ -105,4 +107,4 @@ assert.deepEqual(game.chips, { player: 1000, dealer: 200 });
 
 host.close();
 guest.close();
-console.log("integration: access gate, pairing, bet relay, seat swap, and independent settlement passed");
+console.log("integration: pairing, bet/rematch relay, seat swap, and independent settlement passed");

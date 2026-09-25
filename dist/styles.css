@@ -91,7 +91,7 @@
 @media(max-width:520px){.my-chips{padding:4px 7px}.bet-amount strong{font-size:2.1rem}.standing-row{padding:11px 12px;gap:8px}.standing-row strong{font-size:1.25rem}}
 
 /* 最終ラウンドはLOBBYボタンだけになるので中央に置く */
-.result-overlay.is-final .result-actions{grid-template-columns:min(100%,280px);justify-content:center}
+.result-overlay.is-final .result-actions{grid-template-columns:repeat(2,minmax(0,1fr));justify-content:center}
 
 /* Match screen: opponent search, invitations and the match room */
 .match-screen{grid-template-rows:auto 1fr;align-content:start;background:#090506}

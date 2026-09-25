@@ -4,7 +4,7 @@ import { dealSpecials } from "./skills.js";
 const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
 
 /** 1試合のラウンド数。 */
-export const MATCH_ROUNDS = 5;
+export const MATCH_ROUNDS = 3;
 /** 開始時の持ちチップ。 */
 export const STARTING_CHIPS = 500;
 /** ベットの最小単位。 */

@@ -136,7 +136,7 @@ export class MatchScreen {
     const state = waiting ? '<em class="is-busy">申し込み中</em>' : busy ? '<em class="is-busy">対戦中</em>' : '<em class="is-open">対戦できる</em>';
     row.innerHTML = `<span class="player-badge">${suitOf(player.id)}</span>`
       + `<span class="player-main"><strong>${player.name}</strong>`
-      + `<span class="player-meta">${state}<span>ID ${player.id}</span><span>全5ラウンド</span></span></span>`
+      + `<span class="player-meta">${state}<span>ID ${player.id}</span><span>全3ゲーム</span></span></span>`
       + '<span class="player-stat"><small>CHIP</small><b>500<i>C</i></b></span>';
     row.addEventListener("click", () => this.invite(player));
     return row;

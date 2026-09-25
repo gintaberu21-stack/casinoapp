@@ -21,6 +21,9 @@ let onlinePendingSpecial = null;
 let pendingGuestBetResolve = null;
 let guestRenderedRound = 0;
 let guestStateQueue = Promise.resolve();
+let localRematchReady = false;
+let peerRematchReady = false;
+let rematchStarting = false;
 
 const isOnline = () => Boolean(onlineRole);
 const isOnlineHost = () => onlineRole === "host";
@@ -83,6 +86,9 @@ function setDifficulty(difficulty) {
 
 async function startGame(options = {}) {
   if (busy) return;
+  localRematchReady = false;
+  peerRematchReady = false;
+  rematchStarting = false;
   onlineRole = options.role ?? null;
   ui.setOnlineRole(onlineRole);
   guestRenderedRound = 0;
@@ -91,6 +97,7 @@ async function startGame(options = {}) {
   const mode = onlineRole ? "online" : selectedMode;
   game.configure({ mode, difficulty: selectedDifficulty });
   document.body.dataset.mode = mode;
+  ui.els["back-lobby"].hidden = true;
   ui.transitionTo("game");
   if (onlineRole === "guest") {
     busy = true;
@@ -351,8 +358,6 @@ async function finishRound() {
       chips: result.chips,
       rounds: result.round,
     });
-    await wait(6000);
-    returnToLobby();
     return;
   }
   ui.showStanding(result, game);
@@ -374,8 +379,34 @@ function returnToLobby() {
   pendingGuestBetResolve = null;
   guestRenderedRound = 0;
   guestStateQueue = Promise.resolve();
+  localRematchReady = false;
+  peerRematchReady = false;
+  rematchStarting = false;
   ui.setOnlineRole(null);
+  ui.els["back-lobby"].hidden = false;
   ui.transitionTo("lobby");
+}
+
+async function startRematch() {
+  if (rematchStarting) return;
+  rematchStarting = true;
+  const role = onlineRole;
+  busy = false;
+  ui.els["result-overlay"].hidden = true;
+  await startGame(role ? { role } : {});
+}
+
+async function requestRematch() {
+  if (game.phase !== "settled" || localRematchReady) return;
+  if (!isOnline()) {
+    await startRematch();
+    return;
+  }
+  localRematchReady = true;
+  ui.els["result-rematch"].disabled = true;
+  ui.els["result-rematch"].textContent = peerRematchReady ? "再戦を開始します…" : "相手を待っています…";
+  matchService.sendAction({ type: "rematch" });
+  if (peerRematchReady) await startRematch();
 }
 
 async function sendGuestSpecial(id) {
@@ -393,6 +424,13 @@ async function sendGuestSpecial(id) {
 }
 
 async function handleRemoteAction(action) {
+  if (action.type === "rematch" && isOnline()) {
+    peerRematchReady = true;
+    ui.toast("相手が再戦を希望しています");
+    if (!localRematchReady) ui.els["result-delta"].textContent = "相手が再戦を希望しています";
+    if (localRematchReady) await startRematch();
+    return;
+  }
   if (isOnlineHost() && action.type === "bet" && pendingGuestBetResolve) {
     const resolve = pendingGuestBetResolve;
     pendingGuestBetResolve = null;
@@ -477,7 +515,6 @@ async function receiveHostState(payload) {
   if (payload.event === "result") {
     ui.showResult(payload.result, game);
     busy = true;
-    setTimeout(returnToLobby, 6000);
     return;
   }
   if (["hit", "stand", "specialResult", "showdown", "betsLocked"].includes(payload.event)) {
@@ -488,7 +525,7 @@ async function receiveHostState(payload) {
   }
   const myTurn = game.phase === "playing" && game.actor === "player";
   ui.els["standing-next"].disabled = false;
-  ui.els["standing-next"].innerHTML = "<span>NEXT ROUND</span><small>次のラウンドへ</small>";
+  ui.els["standing-next"].innerHTML = "<span>NEXT GAME</span><small>次のゲームへ</small>";
   ui.setActions(myTurn, game.actor);
   ui.renderSpecials(game);
   ui.els["round-status"].textContent = myTurn ? "YOUR TURN" : "PLAYER 1 TURN";
@@ -536,6 +573,7 @@ ui.els["standing-next"].addEventListener("click", () => { if (onlineRole !== "gu
 ui.els["standing-lobby"].addEventListener("click", returnToLobby);
 ui.els["back-lobby"].addEventListener("click", returnToLobby);
 ui.els["result-lobby"].addEventListener("click", returnToLobby);
+ui.els["result-rematch"].addEventListener("click", requestRematch);
 matchService.addEventListener("state", (event) => {
   const payload = event.detail.payload;
   guestStateQueue = guestStateQueue.then(() => receiveHostState(payload)).catch(() => {
