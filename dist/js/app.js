@@ -547,10 +547,21 @@ document.addEventListener("click", (event) => {
 }, true);
 document.querySelectorAll("[data-mode]").forEach((button) => button.addEventListener("click", () => {
   setMode(button.dataset.mode);
-  if (button.dataset.mode === "duo") matchScreen.open();
+  if (button.dataset.mode === "duo") ui.els["duo-mode-dialog"].showModal();
 }));
 ui.els["match-back"].addEventListener("click", returnToLobby);
-ui.els["game-start"].addEventListener("click", startGame);
+ui.els["game-start"].addEventListener("click", () => {
+  if (selectedMode === "duo") ui.els["duo-mode-dialog"].showModal();
+  else startGame();
+});
+ui.els["duo-device"].addEventListener("click", () => {
+  ui.els["duo-mode-dialog"].close();
+  startGame();
+});
+ui.els["duo-local"].addEventListener("click", () => {
+  ui.els["duo-mode-dialog"].close();
+  matchScreen.open();
+});
 ui.els["hit-button"].addEventListener("click", () => {
   if (onlineRole === "guest") {
     busy = true;

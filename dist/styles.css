@@ -161,3 +161,6 @@
 .room-panel .start-button:disabled{cursor:default;filter:grayscale(.55) brightness(.8)}
 .room-leave{width:100%;min-height:46px;margin-top:10px;color:var(--cream);background:#1c0b0d;border:1px solid #67303a;cursor:pointer;font:.85rem Arial,sans-serif}
 @media(max-width:520px){.match-body{padding-inline:11px}.search-row{grid-template-columns:1fr 92px;gap:8px}.search-submit{font-size:.88rem;letter-spacing:.08em}.match-banner{grid-template-columns:auto 1fr;gap:10px}.banner-id{grid-column:1/-1;justify-self:start;display:flex;align-items:baseline;gap:9px;min-width:0}.banner-id strong{font-size:1.3rem}.player-row{grid-template-columns:46px 1fr auto;gap:9px;padding:9px 10px}.player-badge{width:46px;height:46px;font-size:1.35rem}.player-main strong{font-size:.92rem}.room-seats{gap:6px}.room-seat{padding:11px 4px}}
+.duo-mode-list button{grid-template-columns:145px 1fr}
+.duo-mode-list button span{line-height:1.35}
+@media(max-width:520px){.duo-mode-list button{grid-template-columns:1fr;text-align:center}.duo-mode-list button small{margin-top:4px}}
