@@ -1,4 +1,5 @@
 import http from "node:http";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
@@ -18,6 +19,7 @@ const database = await connect(process.env.MONGODB_URI).catch((error) => {
   return null;
 });
 const store = new Store(database);
+await store.clearPlayers();
 console.log(`[db] ${store.usesMongo ? "MongoDBに接続しました" : "メモリ保存で動作中（MONGODB_URI未設定）"}`);
 
 const app = express();
@@ -34,6 +36,16 @@ app.get("/api/matches", async (_request, response) => {
 
 const server = http.createServer(app);
 const sockets = new Map();
+const cleanName = (value) => String(value ?? "").trim().replace(/[<>]/g, "").slice(0, 16);
+const accountKeyFor = (token) => crypto.createHash("sha256").update(String(token)).digest("hex");
+const publicAccount = (account) => account ? ({
+  playerId: account.playerId,
+  name: account.name,
+  chips: Number(account.chips) || 0,
+  debt: Math.max(0, Number(account.debt) || 0),
+  bet: account.bet ?? { amount: 100, multiplier: 1 },
+  stats: account.stats ?? { matches: 0, wins: 0, losses: 0, draws: 0 },
+}) : null;
 
 const send = (socket, message) => {
   if (socket?.readyState === 1) socket.send(JSON.stringify(message));
@@ -82,31 +94,63 @@ wss.on("connection", (socket) => {
 
     if (message.type === "join") {
       if (socket.playerId) return;
-      // リロードで戻ってきた人は、そのIDが空いていれば同じ番号を返す。
-      const resume = Number(message.resumeId);
-      if (Number.isInteger(resume) && resume > 0 && !sockets.has(resume)) {
-        socket.playerId = resume;
-      } else {
-        // 誰もいなくなると採番をリセットするので、使用中の番号が出たら次を引く。
-        let candidate = await store.nextPlayerId();
-        for (let guard = 0; sockets.has(candidate) && guard < 500; guard += 1) candidate = await store.nextPlayerId();
-        socket.playerId = candidate;
+      const token = String(message.token ?? "");
+      const nickname = cleanName(message.nickname);
+      if (token.length < 20) { send(socket, { type: "accountError", message: "アカウント情報が無効です" }); return; }
+      socket.accountKey = accountKeyFor(token);
+      let account = await store.findAccount(socket.accountKey);
+      if (!account) {
+        if (!nickname) { send(socket, { type: "accountRequired" }); return; }
+        account = await store.createAccount(socket.accountKey, nickname);
       }
+      const previous = sockets.get(account.playerId);
+      if (previous && previous !== socket) previous.terminate();
+      socket.playerId = account.playerId;
       sockets.set(socket.playerId, socket);
       await store.addPlayer({
         playerId: socket.playerId,
-        name: `PLAYER ${socket.playerId}`,
+        ...publicAccount(account),
         status: "idle",
         peerId: null,
         joinedAt: new Date(),
       });
-      send(socket, { type: "welcome", id: socket.playerId });
+      send(socket, { type: "welcome", id: socket.playerId, account: publicAccount(account) });
       await broadcastRoster();
       return;
     }
 
     if (!socket.playerId) return;
     const target = Number(message.to);
+
+    if (message.type === "rename") {
+      const name = cleanName(message.name);
+      if (!name) { send(socket, { type: "accountError", message: "名前を入力してください" }); return; }
+      const account = await store.updateAccount(socket.playerId, { name });
+      await store.updatePlayerProfile(socket.playerId, { name });
+      send(socket, { type: "account", account: publicAccount(account) });
+      await broadcastRoster();
+      return;
+    }
+
+    if (message.type === "profile") {
+      const normalize = (profile) => ({
+        chips: Number.isFinite(Number(profile?.chips)) ? Math.round(Number(profile.chips)) : 500,
+        debt: Math.max(0, Math.round(Number(profile?.debt) || 0)),
+        bet: {
+          amount: Math.max(50, Math.round(Number(profile?.bet?.amount) || 100)),
+          multiplier: Math.max(1, Math.min(3, Math.round(Number(profile?.bet?.multiplier) || 1))),
+        },
+      });
+      const own = await store.updateAccount(socket.playerId, normalize(message.own));
+      await store.updatePlayerProfile(socket.playerId, publicAccount(own));
+      if (socket.peerId && message.peer) {
+        const peer = await store.updateAccount(socket.peerId, normalize(message.peer));
+        await store.updatePlayerProfile(socket.peerId, publicAccount(peer));
+      }
+      send(socket, { type: "account", account: publicAccount(own) });
+      await broadcastRoster();
+      return;
+    }
 
     if (message.type === "invite") {
       const targetSocket = sockets.get(target);
@@ -152,8 +196,22 @@ wss.on("connection", (socket) => {
     }
 
     if (message.type === "result") {
-      if (!socket.peerId) return;
-      await store.saveMatch({ host: socket.playerId, guest: socket.peerId, ...message.payload });
+      await store.saveMatch({ host: socket.playerId, guest: socket.peerId ?? null, ...message.payload });
+      const resultProfile = (actor) => ({
+        chips: Math.round(Number(message.payload?.chips?.[actor]) || 0),
+        debt: Math.max(0, Math.round(Number(message.payload?.debts?.[actor]) || 0)),
+        bet: message.payload?.bets?.[actor] ?? { amount: 100, multiplier: 1 },
+      });
+      await store.updateAccount(socket.playerId, resultProfile("player"));
+      if (socket.peerId) await store.updateAccount(socket.peerId, resultProfile("dealer"));
+      const hostOutcome = message.payload?.winner === "win" ? "win" : message.payload?.winner === "loss" ? "loss" : "draw";
+      const guestOutcome = hostOutcome === "win" ? "loss" : hostOutcome === "loss" ? "win" : "draw";
+      const hostAccount = await store.recordOutcome(socket.playerId, hostOutcome);
+      send(socket, { type: "account", account: publicAccount(hostAccount) });
+      if (socket.peerId) {
+        const guestAccount = await store.recordOutcome(socket.peerId, guestOutcome);
+        sendTo(socket.peerId, { type: "account", account: publicAccount(guestAccount) });
+      }
       return;
     }
 
@@ -163,9 +221,9 @@ wss.on("connection", (socket) => {
   socket.on("close", async () => {
     if (!socket.playerId) return;
     await releasePeer(socket, "left");
+    if (sockets.get(socket.playerId) !== socket) return;
     sockets.delete(socket.playerId);
     await store.removePlayer(socket.playerId);
-    if (await store.countPlayers() === 0) await store.resetCounter();
     await broadcastRoster();
   });
 });

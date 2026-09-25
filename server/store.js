@@ -7,7 +7,7 @@ const COUNTER_ID = "playerId";
 export class Store {
   constructor(database) {
     this.database = database ?? null;
-    this.memory = { counter: 0, players: new Map(), matches: [] };
+    this.memory = { counter: 0, players: new Map(), accounts: new Map(), matches: [] };
   }
 
   get usesMongo() {
@@ -43,6 +43,68 @@ export class Store {
     );
   }
 
+  async findAccount(accountKey) {
+    if (!this.usesMongo) return this.memory.accounts.get(accountKey) ?? null;
+    return this.database.collection("accounts").findOne({ accountKey }, { projection: { _id: 0 } });
+  }
+
+  async findAccountById(playerId) {
+    if (!this.usesMongo) return [...this.memory.accounts.values()].find((account) => account.playerId === playerId) ?? null;
+    return this.database.collection("accounts").findOne({ playerId }, { projection: { _id: 0 } });
+  }
+
+  async createAccount(accountKey, nickname) {
+    const existing = await this.findAccount(accountKey);
+    if (existing) return existing;
+    const now = new Date();
+    const account = {
+      accountKey,
+      playerId: await this.nextPlayerId(),
+      name: nickname,
+      chips: 500,
+      debt: 0,
+      bet: { amount: 100, multiplier: 1 },
+      stats: { matches: 0, wins: 0, losses: 0, draws: 0 },
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (!this.usesMongo) this.memory.accounts.set(accountKey, account);
+    else await this.database.collection("accounts").insertOne(account);
+    return { ...account };
+  }
+
+  async updateAccount(playerId, changes) {
+    const safe = { ...changes, updatedAt: new Date() };
+    if (!this.usesMongo) {
+      const account = await this.findAccountById(playerId);
+      if (account) Object.assign(account, safe);
+      return account ? { ...account } : null;
+    }
+    return this.database.collection("accounts").findOneAndUpdate(
+      { playerId },
+      { $set: safe },
+      { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
+    );
+  }
+
+  async recordOutcome(playerId, outcome) {
+    const field = outcome === "win" ? "wins" : outcome === "loss" ? "losses" : "draws";
+    if (!this.usesMongo) {
+      const account = await this.findAccountById(playerId);
+      if (!account) return null;
+      account.stats ??= { matches: 0, wins: 0, losses: 0, draws: 0 };
+      account.stats.matches += 1;
+      account.stats[field] += 1;
+      account.updatedAt = new Date();
+      return { ...account };
+    }
+    return this.database.collection("accounts").findOneAndUpdate(
+      { playerId },
+      { $inc: { "stats.matches": 1, [`stats.${field}`]: 1 }, $set: { updatedAt: new Date() } },
+      { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
+    );
+  }
+
   async addPlayer(player) {
     if (!this.usesMongo) {
       this.memory.players.set(player.playerId, player);
@@ -64,12 +126,26 @@ export class Store {
     await this.database.collection("players").updateOne({ playerId }, { $set: { status, peerId } });
   }
 
+  async updatePlayerProfile(playerId, profile) {
+    if (!this.usesMongo) {
+      const player = this.memory.players.get(playerId);
+      if (player) Object.assign(player, profile);
+      return;
+    }
+    await this.database.collection("players").updateOne({ playerId }, { $set: profile });
+  }
+
   async removePlayer(playerId) {
     if (!this.usesMongo) {
       this.memory.players.delete(playerId);
       return;
     }
     await this.database.collection("players").deleteOne({ playerId });
+  }
+
+  async clearPlayers() {
+    if (!this.usesMongo) this.memory.players.clear();
+    else await this.database.collection("players").deleteMany({});
   }
 
   async listPlayers() {

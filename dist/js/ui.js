@@ -10,10 +10,15 @@ export class GameUI {
     this.toastTimer = null;
     this.onSpecial = null;
     this.onlineRole = null;
+    this.currentNames = null;
   }
 
   setOnlineRole(role = null) {
     this.onlineRole = role;
+  }
+
+  setNames(names = null) {
+    this.currentNames = names;
   }
 
   isVersus(game) {
@@ -21,12 +26,8 @@ export class GameUI {
   }
 
   seatLabels(game) {
-    if (game.mode !== "online") return this.isVersus(game)
-      ? { player: "PLAYER 1", dealer: "PLAYER 2" }
-      : { player: "YOU", dealer: "DEALER" };
-    return this.onlineRole === "guest"
-      ? { player: "YOU", dealer: "PLAYER 1" }
-      : { player: "YOU", dealer: "PLAYER 2" };
+    if (game.names) return { player: game.names.player, dealer: game.names.dealer };
+    return this.isVersus(game) ? { player: "PLAYER 1", dealer: "PLAYER 2" } : { player: "YOU", dealer: "DEALER" };
   }
 
   cue(name) {
@@ -62,6 +63,7 @@ export class GameUI {
   }
 
   prepareRound(game, onSpecial) {
+    this.currentNames = game.names;
     this.onSpecial = onSpecial;
     this.els["dealer-hand"].replaceChildren();
     this.els["player-hand"].replaceChildren();
@@ -73,6 +75,8 @@ export class GameUI {
     const labels = this.seatLabels(game);
     this.els["rival-chip-label"].textContent = labels.dealer;
     this.els["my-chip-label"].textContent = labels.player;
+    this.els["dealer-hand-name"].textContent = labels.dealer;
+    this.els["player-hand-name"].textContent = labels.player;
     this.updateScores(game);
     this.renderSpecials(game, true);
     this.setActions(false, game.actor);
@@ -239,7 +243,7 @@ export class GameUI {
     this.els["stand-button"].querySelector("small").textContent = dealerTurn ? "ディーラーが止まる" : "勝負する";
     this.els["round-status"].textContent = dealerTurn ? "DEALER TURN" : "PLAYER TURN";
     const online = document.body.dataset.mode === "online";
-    this.els["dealer-kicker"].textContent = online ? this.seatLabels({ mode: "online" }).dealer
+    this.els["dealer-kicker"].textContent = online ? this.seatLabels({ mode: "online", names: this.currentNames }).dealer
       : dealerTurn && document.body.dataset.mode === "duo" ? "PLAYER 2" : "THE HOUSE";
   }
 
@@ -306,10 +310,10 @@ export class GameUI {
     this.cue("coin");
     await wait(1350);
     const faceLabel = face === "front" ? "表 ♦" : "裏 ♠";
-    const versusLabels = mode === "online" ? this.seatLabels({ mode: "online" }) : { player: "PLAYER 1", dealer: "PLAYER 2" };
-    const actorLabel = mode === "solo" ? (firstActor === "player" ? "PLAYER 1" : "DEALER") : versusLabels[firstActor];
+    const versusLabels = this.seatLabels({ mode, names: this.currentNames });
+    const actorLabel = versusLabels[firstActor];
     const orderHeading = mode === "solo" ? (firstActor === "player" ? "あなたが先攻" : "あなたは後攻") : `${actorLabel}が先攻`;
-    const secondActor = mode === "solo" ? (firstActor === "player" ? "DEALER" : "PLAYER 1") : versusLabels[opponentOf(firstActor)];
+    const secondActor = versusLabels[opponentOf(firstActor)];
     choice.hidden = true;
     overlay.classList.add("is-decided");
     this.els["coin-heading"].textContent = orderHeading;
@@ -320,10 +324,11 @@ export class GameUI {
   }
 
   async requestHandoff(actor) {
+    const actorName = this.currentNames?.[actor] ?? (actor === "player" ? "PLAYER 1" : "PLAYER 2");
     this.els["handoff-overlay"].hidden = false;
-    this.els["handoff-overlay"].querySelector("h2").textContent = actor === "player" ? "PLAYER 1 TURN" : "PLAYER 2 TURN";
+    this.els["handoff-overlay"].querySelector("h2").textContent = `${actorName} TURN`;
     this.els["handoff-overlay"].querySelector("small").textContent = "相手に必殺技カードを見られないように交代";
-    this.els["dealer-ready"].textContent = `${actor === "player" ? "PLAYER 1" : "PLAYER 2"} 準備OK`;
+    this.els["dealer-ready"].textContent = `${actorName} 準備OK`;
     await new Promise((resolve) => this.els["dealer-ready"].addEventListener("click", resolve, { once: true }));
     this.els["handoff-overlay"].hidden = true;
   }

@@ -10,6 +10,8 @@ export async function connect(uri) {
   await client.connect();
   database = client.db(process.env.MONGODB_DB || "casino_duel");
   await database.collection("players").createIndex({ playerId: 1 }, { unique: true });
+  await database.collection("accounts").createIndex({ accountKey: 1 }, { unique: true });
+  await database.collection("accounts").createIndex({ playerId: 1 }, { unique: true });
   await database.collection("matches").createIndex({ finishedAt: -1 });
   return database;
 }

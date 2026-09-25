@@ -17,6 +17,7 @@ export class CasinoDuelGame {
   constructor() {
     this.mode = "solo";
     this.difficulty = "normal";
+    this.names = { player: "YOU", dealer: "DEALER" };
     this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
     this.debts = { player: 0, dealer: 0 };
     this.baseWager = 100;
@@ -45,6 +46,7 @@ export class CasinoDuelGame {
     return {
       mode: "online",
       difficulty: this.difficulty,
+      names: swapPair(this.names),
       chips: swapPair(this.chips),
       debts: swapPair(this.debts),
       baseWager: this.baseWager,
@@ -69,7 +71,7 @@ export class CasinoDuelGame {
   /** ゲスト端末はゲーム計算をせず、ホストから届いた状態だけを表示する。 */
   restore(snapshot) {
     const fields = [
-      "mode", "difficulty", "chips", "debts", "baseWager", "wager", "bets", "skills", "matchRound",
+      "mode", "difficulty", "names", "chips", "debts", "baseWager", "wager", "bets", "skills", "matchRound",
       "matchWins", "player", "dealer", "reservedCard", "stood", "autoStood",
       "lossShield", "locked", "phase", "actor", "dealerRevealed",
     ];
@@ -95,16 +97,25 @@ export class CasinoDuelGame {
     this.dealerRevealed = false;
   }
 
-  startMatch() {
-    this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
-    this.debts = { player: 0, dealer: 0 };
+  startMatch(profiles = {}) {
+    const profileOf = (actor, fallbackName) => ({
+      name: String(profiles[actor]?.name ?? fallbackName),
+      chips: Number.isFinite(Number(profiles[actor]?.chips)) ? Math.round(Number(profiles[actor].chips)) : STARTING_CHIPS,
+      debt: Math.max(0, Math.round(Number(profiles[actor]?.debt) || 0)),
+      bet: profiles[actor]?.bet ?? { amount: 100, multiplier: 1 },
+    });
+    const player = profileOf("player", "YOU");
+    const dealer = profileOf("dealer", "DEALER");
+    this.names = { player: player.name, dealer: dealer.name };
+    this.chips = { player: player.chips, dealer: dealer.chips };
+    this.debts = { player: player.debt, dealer: dealer.debt };
     this.skills = dealSpecials();
     this.matchRound = 0;
     this.matchWins = { player: 0, dealer: 0 };
     this.baseWager = 100;
     this.bets = {
-      player: { amount: 100, multiplier: 1 },
-      dealer: { amount: 100, multiplier: 1 },
+      player: { amount: Number(player.bet.amount) || 100, multiplier: Number(player.bet.multiplier) || 1 },
+      dealer: { amount: Number(dealer.bet.amount) || 100, multiplier: Number(dealer.bet.multiplier) || 1 },
     };
   }
 

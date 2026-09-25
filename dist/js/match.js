@@ -1,4 +1,5 @@
-const MY_ID_KEY = "casinoDuel.myId";
+const ACCOUNT_TOKEN_KEY = "casinoDuel.accountToken";
+const ACCOUNT_PROFILE_KEY = "casinoDuel.accountProfile";
 const RETRY_MS = 2000;
 
 /**
@@ -16,6 +17,8 @@ export class MatchService extends EventTarget {
     this.socket = null;
     this.connected = false;
     this.retryTimer = null;
+    this.token = localStorage.getItem(ACCOUNT_TOKEN_KEY);
+    try { this.account = JSON.parse(localStorage.getItem(ACCOUNT_PROFILE_KEY)) ?? null; } catch { this.account = null; }
   }
 
   emit(type, detail = {}) {
@@ -29,6 +32,7 @@ export class MatchService extends EventTarget {
 
   /** メイン画面に入った時点で呼ぶ。IDはサーバーが連番で配る。 */
   join() {
+    if (!this.token) return null;
     if (!this.socket) this.connect();
     return this.id;
   }
@@ -40,8 +44,7 @@ export class MatchService extends EventTarget {
     socket.addEventListener("open", () => {
       this.connected = true;
       this.emit("connection", { connected: true });
-      const resumeId = Number(sessionStorage.getItem(MY_ID_KEY)) || null;
-      this.send({ type: "join", resumeId });
+      this.send({ type: "join", token: this.token, nickname: this.account?.name });
     });
     socket.addEventListener("message", (event) => this.receive(event.data));
     socket.addEventListener("error", () => socket.close());
@@ -71,10 +74,14 @@ export class MatchService extends EventTarget {
     try { message = JSON.parse(raw); } catch { return; }
     if (message.type === "welcome") {
       this.id = message.id;
-      sessionStorage.setItem(MY_ID_KEY, String(message.id));
-      this.emit("welcome", { id: message.id });
+      this.setAccount(message.account);
+      this.emit("welcome", { id: message.id, account: this.account });
+      if (this.pendingProfile) this.send(this.pendingProfile);
       return;
     }
+    if (message.type === "account") { this.setAccount(message.account); return; }
+    if (message.type === "accountRequired") { this.emit("accountRequired"); return; }
+    if (message.type === "accountError") { this.emit("accountError", { message: message.message }); return; }
     if (message.type === "roster") {
       this.players = message.players ?? [];
       const me = this.players.find((player) => player.playerId === this.id);
@@ -106,7 +113,7 @@ export class MatchService extends EventTarget {
   roster() {
     return this.players
       .filter((player) => player.playerId !== this.id)
-      .map((player) => ({ id: player.playerId, name: player.name, status: player.status }))
+      .map((player) => ({ id: player.playerId, name: player.name, status: player.status, chips: player.chips, debt: player.debt, bet: player.bet, stats: player.stats }))
       .sort((a, b) => a.id - b.id);
   }
 
@@ -160,7 +167,44 @@ export class MatchService extends EventTarget {
   }
 
   saveResult(payload) {
-    if (this.peerId) this.send({ type: "result", payload });
+    this.send({ type: "result", payload });
+  }
+
+  register(name) {
+    const nickname = String(name ?? "").trim().slice(0, 16);
+    if (!nickname) return false;
+    this.token = crypto.randomUUID();
+    this.account = { name: nickname, chips: 500, debt: 0, bet: { amount: 100, multiplier: 1 }, stats: { matches: 0, wins: 0, losses: 0, draws: 0 } };
+    localStorage.setItem(ACCOUNT_TOKEN_KEY, this.token);
+    localStorage.setItem(ACCOUNT_PROFILE_KEY, JSON.stringify(this.account));
+    if (this.socket?.readyState === 1) this.send({ type: "join", token: this.token, nickname });
+    else if (!this.socket) this.connect();
+    return true;
+  }
+
+  setAccount(account) {
+    if (!account) return;
+    this.account = account;
+    this.id = account.playerId ?? this.id;
+    localStorage.setItem(ACCOUNT_PROFILE_KEY, JSON.stringify(account));
+    this.emit("account", { account });
+  }
+
+  rename(name) {
+    const nickname = String(name ?? "").trim().slice(0, 16);
+    if (!nickname) return false;
+    this.send({ type: "rename", name: nickname });
+    return true;
+  }
+
+  saveProgress(own, peer = null) {
+    if (this.account) this.setAccount({ ...this.account, chips: own.chips, debt: own.debt, bet: own.bet });
+    this.pendingProfile = { type: "profile", own, peer };
+    this.send(this.pendingProfile);
+  }
+
+  player(playerId) {
+    return this.players.find((player) => player.playerId === Number(playerId)) ?? null;
   }
 
   reset() {

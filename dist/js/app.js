@@ -31,6 +31,44 @@ const isOnlineHost = () => onlineRole === "host";
 const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
 const invertOutcome = (outcome) => outcome === "win" ? "loss" : outcome === "loss" ? "win" : outcome;
 
+function renderAccount() {
+  const account = matchService.account;
+  if (!account) return;
+  ui.els["home-player-id"].textContent = account.playerId ? `ID ${account.playerId}` : "ID 接続中";
+  ui.els["home-player-name"].textContent = account.name;
+  ui.els["home-player-balance"].textContent = `${account.chips ?? 500} CHIP${account.debt ? ` / 借金 ${account.debt}` : ""}`;
+  ui.els["profile-id"].textContent = account.playerId ?? "接続中";
+  ui.els["profile-name-input"].value = account.name ?? "";
+  const stats = account.stats ?? {};
+  ui.els["stats-name"].textContent = `${account.name} の戦績`;
+  ui.els["stats-matches"].textContent = stats.matches ?? 0;
+  ui.els["stats-wins"].textContent = stats.wins ?? 0;
+  ui.els["stats-losses"].textContent = stats.losses ?? 0;
+  ui.els["stats-draws"].textContent = stats.draws ?? 0;
+  ui.els["stats-chips"].textContent = account.chips ?? 500;
+  ui.els["stats-debt"].textContent = account.debt ?? 0;
+}
+
+function showAccountCreation() {
+  ui.els["account-create-overlay"].hidden = false;
+  setTimeout(() => ui.els["account-name"].focus(), 100);
+}
+
+function profileFromGame(actor) {
+  return {
+    name: game.names?.[actor],
+    chips: game.chips[actor],
+    debt: game.debts[actor],
+    bet: { ...(game.bets[actor] ?? { amount: 100, multiplier: 1 }) },
+  };
+}
+
+function persistProgress() {
+  if (onlineRole === "guest") return;
+  matchService.saveProgress(profileFromGame("player"), isOnlineHost() ? profileFromGame("dealer") : null);
+  renderAccount();
+}
+
 function resultForGuest(result) {
   if (!result) return null;
   const swap = (pair) => pair ? { player: pair.dealer, dealer: pair.player } : pair;
@@ -111,8 +149,22 @@ async function startGame(options = {}) {
     ui.els["round-status"].textContent = "HOST SETTING UP";
     return;
   }
-  game.startMatch();
+  const own = matchService.account ?? { name: "YOU", chips: 500, debt: 0 };
+  const peer = isOnlineHost() ? matchService.player(matchService.peerId) : null;
+  const rival = peer ?? (mode === "duo"
+    ? { name: "PLAYER 2", chips: 500, debt: 0, bet: { amount: 100, multiplier: 1 } }
+    : { name: "DEALER", chips: 500, debt: 0, bet: { amount: 100, multiplier: 1 } });
+  game.startMatch({ player: own, dealer: rival });
+  ui.setNames(game.names);
   await wait(430);
+  if (game.chips.player <= 0) {
+    const keepPlaying = await ui.requestDebtChoice(game, "player");
+    if (!keepPlaying) { returnToLobby(); return; }
+    const before = { ...game.chips };
+    game.takeLoan("player");
+    await ui.animateChipChange(game, before);
+    persistProgress();
+  }
   await beginRound();
 }
 
@@ -136,6 +188,7 @@ async function beginRound() {
     game.setBet("player", bet);
     game.setBet("dealer", bet);
   }
+  persistProgress();
   const firstActor = await ui.runCoinToss(game.mode, {
     onDecision: isOnlineHost() ? ({ face, firstActor: hostFirst }) => {
       syncState("coinToss", null, { face, firstActor: opponentOf(hostFirst) });
@@ -356,6 +409,7 @@ async function finishRound() {
   await ui.animateChipChange(game, chipsBefore);
   if (!(await resolveDebtChoices(result))) return;
   refreshResultBalances(result);
+  persistProgress();
   await wait(1300);
   // ラウンドごとは勝敗を出さず、チップの状況だけ見せる。勝敗画面は試合の最後だけ。
   if (result.matchComplete) {
@@ -364,6 +418,8 @@ async function finishRound() {
     matchService.saveResult({
       winner: result.matchOutcome,
       chips: result.chips,
+      debts: result.debts,
+      bets: result.bets,
       rounds: result.round,
     });
     return;
@@ -404,6 +460,7 @@ async function resolveDebtChoices(result) {
         await wait(900);
       }
       if (!shouldContinue) {
+        persistProgress();
         if (isOnlineHost()) syncState("matchCancelled", result);
         returnToLobby();
         return false;
@@ -524,6 +581,7 @@ async function receiveHostState(payload) {
   const before = { ...game.chips };
   const newRound = payload.state.matchRound !== guestRenderedRound;
   game.restore(payload.state);
+  ui.setNames(game.names);
   document.body.dataset.mode = "online";
   if (payload.event === "betRequest") {
     busy = true;
@@ -672,6 +730,44 @@ matchService.addEventListener("left", () => {
   ui.toast("相手が退出したため、メイン画面へ戻ります");
   setTimeout(returnToLobby, 900);
 });
+matchService.addEventListener("account", () => renderAccount());
+matchService.addEventListener("welcome", () => {
+  ui.els["account-create-overlay"].hidden = true;
+  renderAccount();
+});
+matchService.addEventListener("accountRequired", showAccountCreation);
+matchService.addEventListener("accountError", (event) => {
+  ui.els["account-create-error"].textContent = event.detail.message ?? "登録できませんでした";
+  if (!matchService.account?.playerId) showAccountCreation();
+});
+
+ui.els["account-create-form"].addEventListener("submit", (event) => {
+  event.preventDefault();
+  const name = ui.els["account-name"].value.trim();
+  if (!matchService.register(name)) {
+    ui.els["account-create-error"].textContent = "ニックネームを入力してください";
+    return;
+  }
+  ui.els["account-create-error"].textContent = "";
+  ui.els["account-create-overlay"].hidden = true;
+  renderAccount();
+});
+ui.els["profile-open"].addEventListener("click", () => {
+  renderAccount();
+  ui.els["profile-dialog"].showModal();
+});
+ui.els["stats-open"].addEventListener("click", () => {
+  renderAccount();
+  ui.els["stats-dialog"].showModal();
+});
+ui.els["profile-save"].addEventListener("click", () => {
+  if (!matchService.rename(ui.els["profile-name-input"].value)) {
+    ui.toast("ニックネームを入力してください");
+    return;
+  }
+  ui.els["profile-dialog"].close();
+  ui.toast("名前を変更しました");
+});
 
 installSoundBoard();
 ui.populateSkillGuide();
@@ -679,3 +775,5 @@ bindDialogs();
 setMode("solo");
 setDifficulty("normal");
 matchService.join();
+if (matchService.account) renderAccount();
+else showAccountCreation();

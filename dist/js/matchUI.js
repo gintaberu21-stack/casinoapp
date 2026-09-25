@@ -45,6 +45,7 @@ export class MatchScreen {
     });
 
     this.service.addEventListener("welcome", (event) => this.showId(event.detail.id));
+    this.service.addEventListener("account", () => this.showId(this.service.id));
     this.service.addEventListener("connection", (event) => {
       if (!event.detail.connected) this.showId("—");
       this.render();
@@ -112,7 +113,7 @@ export class MatchScreen {
   render() {
     const players = this.players();
     // 定期更新のたびに作り直すと、押した瞬間にノードが消えてタップが効かなくなる。
-    const signature = JSON.stringify([this.filter, this.query, this.service.status, this.service.peerId, players.map(({ id, status }) => `${id}:${status}`)]);
+    const signature = JSON.stringify([this.filter, this.query, this.service.status, this.service.peerId, players.map(({ id, name, status, chips }) => `${id}:${name}:${status}:${chips}`)]);
     if (signature !== this.signature) {
       this.signature = signature;
       this.els["player-list"].replaceChildren(...players.map((player) => this.createRow(player)));
@@ -137,7 +138,7 @@ export class MatchScreen {
     row.innerHTML = `<span class="player-badge">${suitOf(player.id)}</span>`
       + `<span class="player-main"><strong>${player.name}</strong>`
       + `<span class="player-meta">${state}<span>ID ${player.id}</span><span>全3ゲーム</span></span></span>`
-      + '<span class="player-stat"><small>CHIP</small><b>500<i>C</i></b></span>';
+      + `<span class="player-stat"><small>CHIP</small><b>${player.chips ?? 500}<i>C</i></b></span>`;
     row.addEventListener("click", () => this.invite(player));
     return row;
   }
@@ -149,15 +150,15 @@ export class MatchScreen {
   }
 
   showInvite(peerId) {
-    this.els["invite-name"].textContent = `PLAYER ${peerId}`;
+    this.els["invite-name"].textContent = this.service.player(peerId)?.name ?? `PLAYER ${peerId}`;
     this.els["invite-overlay"].querySelector(".invite-suit").textContent = suitOf(peerId);
     this.els["invite-overlay"].hidden = false;
     this.ui.cue("notify");
   }
 
   showRoom({ peerId, isHost }) {
-    const me = `PLAYER ${this.service.id}`;
-    const peer = `PLAYER ${peerId}`;
+    const me = this.service.account?.name ?? `PLAYER ${this.service.id}`;
+    const peer = this.service.player(peerId)?.name ?? `PLAYER ${peerId}`;
     this.els["room-host"].textContent = isHost ? me : peer;
     this.els["room-guest"].textContent = isHost ? peer : me;
     this.els["room-title"].textContent = "対戦部屋";
