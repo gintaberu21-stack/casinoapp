@@ -559,7 +559,11 @@ export class GameUI {
   /** 破産した本人にだけ、退出か500チップの借り入れ継続かを選ばせる。 */
   async requestDebtChoice(game, actor = "player") {
     const labels = this.seatLabels(game);
-    this.els["debt-owner"].textContent = `${labels[actor]}のチップが0以下になりました`;
+    this.els["debt-owner"].replaceChildren(document.createTextNode(`${labels[actor]}のチップが`));
+    const zero = document.createElement("span");
+    zero.className = "numeric";
+    zero.textContent = "0";
+    this.els["debt-owner"].append(zero, document.createTextNode("以下になりました"));
     this.els["debt-balance"].textContent = `${game.chips[actor]} CHIP`;
     this.els["debt-total"].textContent = `現在の借金 ${game.debts?.[actor] ?? 0} CHIP`;
     const overlay = this.els["debt-overlay"];
