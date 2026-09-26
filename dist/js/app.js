@@ -36,7 +36,7 @@ function renderAccount() {
   if (!account) return;
   ui.els["home-player-id"].textContent = account.playerId ? `ID ${account.playerId}` : "ID 接続中";
   ui.els["home-player-name"].textContent = account.name;
-  ui.els["home-player-balance"].textContent = `${account.chips ?? 500} CHIP${account.debt ? ` / 借金 ${account.debt}` : ""}`;
+  ui.els["home-player-balance"].textContent = `${account.chips ?? 3000} CHIP${account.debt ? ` / 借金 ${account.debt}` : ""}`;
   ui.els["profile-id"].textContent = account.playerId ?? "接続中";
   ui.els["profile-name-input"].value = account.name ?? "";
   const stats = account.stats ?? {};
@@ -45,7 +45,7 @@ function renderAccount() {
   ui.els["stats-wins"].textContent = stats.wins ?? 0;
   ui.els["stats-losses"].textContent = stats.losses ?? 0;
   ui.els["stats-draws"].textContent = stats.draws ?? 0;
-  ui.els["stats-chips"].textContent = account.chips ?? 500;
+  ui.els["stats-chips"].textContent = account.chips ?? 3000;
   ui.els["stats-debt"].textContent = account.debt ?? 0;
 }
 
@@ -59,6 +59,7 @@ function profileFromGame(actor) {
     name: game.names?.[actor],
     chips: game.chips[actor],
     debt: game.debts[actor],
+    inventory: structuredClone(game.inventories[actor]),
     bet: { ...(game.bets[actor] ?? { amount: 100, multiplier: 1 }) },
   };
 }
@@ -81,6 +82,7 @@ function resultForGuest(result) {
     deltas: swap(result.deltas),
     grossDeltas: swap(result.grossDeltas),
     repayments: swap(result.repayments),
+    returns: swap(result.returns),
     stakes: swap(result.stakes),
     bets: swap(result.bets),
     bankrupt: result.bankrupt === "player" ? "dealer" : result.bankrupt === "dealer" ? "player" : null,
@@ -149,11 +151,11 @@ async function startGame(options = {}) {
     ui.els["round-status"].textContent = "HOST SETTING UP";
     return;
   }
-  const own = matchService.account ?? { name: "YOU", chips: 500, debt: 0 };
+  const own = matchService.account ?? { name: "YOU", chips: 3000, inventory: { red: 5, blue: 3, black: 1 }, debt: 0 };
   const peer = isOnlineHost() ? matchService.player(matchService.peerId) : null;
   const rival = peer ?? (mode === "duo"
-    ? { name: "PLAYER 2", chips: 500, debt: 0, bet: { amount: 100, multiplier: 1 } }
-    : { name: "DEALER", chips: 500, debt: 0, bet: { amount: 100, multiplier: 1 } });
+    ? { name: "PLAYER 2", chips: 3000, inventory: { red: 5, blue: 3, black: 1 }, debt: 0 }
+    : { name: "DEALER", chips: 3000, inventory: { red: 5, blue: 3, black: 1 }, debt: 0 });
   game.startMatch({ player: own, dealer: rival });
   ui.setNames(game.names);
   await wait(430);
@@ -379,7 +381,7 @@ async function executeSpecial(id, isAi, supplied = null) {
   ui.renderSpecials(game);
   syncState("specialResult");
   const messages = {
-    double: `勝負額が2倍の${result.wager}チップに!`, triple: `勝負額が3倍の${result.wager}チップに!`,
+    double: `勝利時の獲得分が2倍の${result.wager}チップに!`, triple: `勝利時の獲得分が3倍の${result.wager}チップに!`,
     shield: "敗北時の損失を100軽減!", peek: "次に自分が引くカードを確保!",
     selectReverse: "選んだカードを捨てた!", shuffle: "選んだカードを1枚ずつ交換!",
     extraDraw: "1枚引いて、選んだ手札を捨てた!", lock: "相手の次ターンの必殺技を封印!",
@@ -406,6 +408,7 @@ async function finishRound() {
   const chipsBefore = { ...game.chips };
   const result = game.settle();
   ui.renderHands(game);
+  await ui.animateChipPayout(result);
   await ui.animateChipChange(game, chipsBefore);
   if (!(await resolveDebtChoices(result))) return;
   refreshResultBalances(result);
@@ -419,6 +422,7 @@ async function finishRound() {
       winner: result.matchOutcome,
       chips: result.chips,
       debts: result.debts,
+      inventories: structuredClone(game.inventories),
       bets: result.bets,
       rounds: result.round,
     });
@@ -629,6 +633,7 @@ async function receiveHostState(payload) {
   } else {
     ui.renderHands(game);
     ui.renderSpecials(game);
+    if (["standing", "result"].includes(payload.event) && payload.result) await ui.animateChipPayout(payload.result);
     await ui.animateChipChange(game, before);
   }
   ui.setActions(false, game.actor);

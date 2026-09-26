@@ -174,7 +174,7 @@ export class MatchService extends EventTarget {
     const nickname = String(name ?? "").trim().slice(0, 16);
     if (!nickname) return false;
     this.token = crypto.randomUUID();
-    this.account = { name: nickname, chips: 500, debt: 0, bet: { amount: 100, multiplier: 1 }, stats: { matches: 0, wins: 0, losses: 0, draws: 0 } };
+    this.account = { name: nickname, chips: 3000, inventory: { red: 5, blue: 3, black: 1 }, debt: 0, bet: { chips: {}, amount: 0, multiplier: 1 }, stats: { matches: 0, wins: 0, losses: 0, draws: 0 } };
     localStorage.setItem(ACCOUNT_TOKEN_KEY, this.token);
     localStorage.setItem(ACCOUNT_PROFILE_KEY, JSON.stringify(this.account));
     if (this.socket?.readyState === 1) this.send({ type: "join", token: this.token, nickname });
@@ -198,7 +198,7 @@ export class MatchService extends EventTarget {
   }
 
   saveProgress(own, peer = null) {
-    if (this.account) this.setAccount({ ...this.account, chips: own.chips, debt: own.debt, bet: own.bet });
+    if (this.account) this.setAccount({ ...this.account, chips: own.chips, inventory: own.inventory, debt: own.debt, bet: own.bet });
     this.pendingProfile = { type: "profile", own, peer };
     this.send(this.pendingProfile);
   }

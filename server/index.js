@@ -36,12 +36,14 @@ app.get("/api/matches", async (_request, response) => {
 
 const server = http.createServer(app);
 const sockets = new Map();
+const STARTING_INVENTORY = { red: 5, blue: 3, black: 1 };
 const cleanName = (value) => String(value ?? "").trim().replace(/[<>]/g, "").slice(0, 16);
 const accountKeyFor = (token) => crypto.createHash("sha256").update(String(token)).digest("hex");
 const publicAccount = (account) => account ? ({
   playerId: account.playerId,
   name: account.name,
-  chips: Number(account.chips) || 0,
+  chips: account.inventory ? Number(account.chips) || 0 : 3000,
+  inventory: account.inventory ?? { ...STARTING_INVENTORY },
   debt: Math.max(0, Number(account.debt) || 0),
   bet: account.bet ?? { amount: 100, multiplier: 1 },
   stats: account.stats ?? { matches: 0, wins: 0, losses: 0, draws: 0 },
@@ -134,11 +136,13 @@ wss.on("connection", (socket) => {
 
     if (message.type === "profile") {
       const normalize = (profile) => ({
-        chips: Number.isFinite(Number(profile?.chips)) ? Math.round(Number(profile.chips)) : 500,
+        chips: Number.isFinite(Number(profile?.chips)) ? Math.round(Number(profile.chips)) : 3000,
+        inventory: Object.fromEntries(Object.keys(STARTING_INVENTORY).map((type) => [type, Math.max(0, Math.min(999, Math.round(Number(profile?.inventory?.[type]) || 0)))])),
         debt: Math.max(0, Math.round(Number(profile?.debt) || 0)),
         bet: {
-          amount: Math.max(50, Math.round(Number(profile?.bet?.amount) || 100)),
-          multiplier: Math.max(1, Math.min(3, Math.round(Number(profile?.bet?.multiplier) || 1))),
+          chips: Object.fromEntries(Object.keys(STARTING_INVENTORY).map((type) => [type, Math.max(0, Math.round(Number(profile?.bet?.chips?.[type]) || 0))])),
+          amount: Math.max(0, Math.round(Number(profile?.bet?.amount) || 0)),
+          multiplier: Math.max(1, Math.round(Number(profile?.bet?.multiplier) || 1)),
         },
       });
       const own = await store.updateAccount(socket.playerId, normalize(message.own));
@@ -200,6 +204,7 @@ wss.on("connection", (socket) => {
       const resultProfile = (actor) => ({
         chips: Math.round(Number(message.payload?.chips?.[actor]) || 0),
         debt: Math.max(0, Math.round(Number(message.payload?.debts?.[actor]) || 0)),
+        inventory: message.payload?.inventories?.[actor] ?? { ...STARTING_INVENTORY },
         bet: message.payload?.bets?.[actor] ?? { amount: 100, multiplier: 1 },
       });
       await store.updateAccount(socket.playerId, resultProfile("player"));

@@ -1,5 +1,5 @@
 import { SPECIALS } from "./skills.js";
-import { MATCH_ROUNDS, BET_STEP } from "./game.js";
+import { MATCH_ROUNDS, CHIP_TYPES, inventoryValue } from "./game.js";
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
@@ -54,6 +54,33 @@ export class GameUI {
     node.setAttribute("aria-label", hidden ? "伏せカード" : `${card.symbol}${card.rank}`);
     node.innerHTML = `<div class="card-inner" aria-hidden="true"><div class="card-face"><span class="card-corner">${card.rank}<i>${card.symbol}</i></span><span class="card-suit">${card.symbol}</span><span class="card-corner bottom">${card.rank}<i>${card.symbol}</i></span></div><div class="card-back"></div></div>`;
     return node;
+  }
+
+  createChip(type) {
+    const chip = document.createElement("i");
+    chip.className = `casino-chip is-${type}`;
+    chip.setAttribute("aria-hidden", "true");
+    return chip;
+  }
+
+  createChipStack(type, count) {
+    const stack = document.createElement("span");
+    stack.className = "chip-stack";
+    stack.dataset.type = type;
+    stack.title = `${CHIP_TYPES[type].label} ${CHIP_TYPES[type].value} × ${count}`;
+    stack.style.height = `${Math.max(18, 15 + Math.max(0, count - 1) * 4)}px`;
+    for (let index = 0; index < count; index += 1) {
+      const chip = this.createChip(type);
+      chip.style.setProperty("--chip-y", `${index * 4}px`);
+      stack.append(chip);
+    }
+    return stack;
+  }
+
+  renderChipCollection(container, inventory = {}) {
+    container.replaceChildren(...Object.keys(CHIP_TYPES)
+      .filter((type) => (inventory[type] ?? 0) > 0)
+      .map((type) => this.createChipStack(type, inventory[type])));
   }
 
   cardIsHidden(game, target, index) {
@@ -141,6 +168,8 @@ export class GameUI {
     this.els["dealer-score"].classList.toggle("is-hidden", !visibleDealer);
     this.els["player-chip-count"].textContent = game.chips.player;
     this.els["dealer-chip-count"].textContent = game.chips.dealer;
+    this.renderChipCollection(this.els["player-chip-stack"], game.inventories?.player);
+    this.renderChipCollection(this.els["dealer-chip-stack"], game.inventories?.dealer);
     ["player", "dealer"].forEach((actor) => {
       const debt = game.debts?.[actor] ?? 0;
       const node = this.els[`${actor}-debt-count`];
@@ -151,11 +180,29 @@ export class GameUI {
   }
 
   updateWager(game) {
-    const own = game.bets?.player ?? { amount: game.wager, multiplier: 1 };
+    const own = game.bets?.player ?? { amount: game.wager, multiplier: 1, chips: {} };
     const rival = game.bets?.dealer ?? own;
-    this.els["wager-count"].textContent = game.mode === "online"
-      ? `${own.amount}×${own.multiplier} / ${rival.amount}×${rival.multiplier}`
-      : `${own.amount}×${own.multiplier}`;
+    this.renderChipCollection(this.els["player-bet-stack"], own.chips);
+    this.renderChipCollection(this.els["dealer-bet-stack"], rival.chips);
+    this.els["wager-count"].textContent = `${own.amount ?? 0} / ${rival.amount ?? 0}`;
+  }
+
+  async animateChipPayout(result) {
+    const actors = ["player", "dealer"].filter((actor) => Object.values(result.returns?.[actor] ?? {}).some(Boolean));
+    for (const actor of actors) {
+      const target = this.els[`${actor}-chip-count`].getBoundingClientRect();
+      const flight = document.createElement("div");
+      flight.className = "chip-payout-flight";
+      flight.style.setProperty("--target-x", `${target.left + target.width / 2}px`);
+      flight.style.setProperty("--target-y", `${target.top + target.height / 2}px`);
+      Object.entries(result.returns[actor]).forEach(([type, count]) => {
+        for (let index = 0; index < count; index += 1) flight.append(this.createChip(type));
+      });
+      document.body.append(flight);
+      this.cue("chip");
+      setTimeout(() => flight.remove(), 1600);
+    }
+    if (actors.length) await wait(1500);
   }
 
   async animateChipChange(game, before) {
@@ -411,40 +458,49 @@ export class GameUI {
     const overlay = this.els["bet-overlay"];
     const labels = this.seatLabels(game);
     const opponent = opponentOf(actor);
-    let multiplier = game.bets?.[actor]?.multiplier ?? 1;
-    let amount = game.bets?.[actor]?.amount ?? game.baseWager;
+    const selected = { red: 0, blue: 0, black: 0 };
     this.els["bet-round"].textContent = `GAME ${game.matchRound + 1} / ${MATCH_ROUNDS}`;
     this.els["bet-my-label"].textContent = labels[actor];
     this.els["bet-rival-label"].textContent = labels[opponent];
     this.els["bet-my-chips"].textContent = game.chips[actor];
     this.els["bet-rival-chips"].textContent = game.chips[opponent];
-    const list = this.els["bet-presets"];
+    const list = this.els["bet-chip-picker"];
     const render = () => {
-      const max = game.maxWager(actor);
-      amount = Math.min(amount, max);
-      const presets = [...new Set([BET_STEP, 100, 150, 250, 500].filter((value) => value < max).concat(max))];
-      list.replaceChildren(...presets.map((value) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.dataset.bet = value;
-        button.dataset.cue = "select";
-        button.innerHTML = value === max ? `<span>MAX</span><small>${value}</small>` : `<span>${value}</span><small>CHIP</small>`;
-        button.addEventListener("click", () => { amount = value; render(); });
-        return button;
-      }));
-      this.els["bet-amount"].textContent = `${amount} ×${multiplier}`;
-      this.els["bet-total-note"].textContent = `勝ち/負けポイント：±${amount * multiplier} CHIP`;
-      list.querySelectorAll("button").forEach((button) => button.classList.toggle("is-selected", Number(button.dataset.bet) === amount));
-      this.els["bet-multipliers"].querySelectorAll("button").forEach((button) => button.classList.toggle("is-selected", Number(button.dataset.multiplier) === multiplier));
+      const groups = Object.entries(CHIP_TYPES).map(([type, chipType]) => {
+        const group = document.createElement("section");
+        group.className = "chip-picker-group";
+        const label = document.createElement("span");
+        label.className = "chip-picker-label";
+        label.innerHTML = `<strong>${chipType.value}</strong><small>${chipType.label} × ${game.inventories[actor][type]}</small>`;
+        const row = document.createElement("div");
+        row.className = "chip-token-row";
+        for (let index = 0; index < game.inventories[actor][type]; index += 1) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `bet-chip-token ${index < selected[type] ? "is-selected" : ""}`;
+          button.setAttribute("aria-label", `${chipType.value}チップ ${index < selected[type] ? "選択済み" : "未選択"}`);
+          button.append(this.createChip(type));
+          button.addEventListener("click", () => {
+            selected[type] = index < selected[type] ? Math.max(0, selected[type] - 1) : Math.min(game.inventories[actor][type], selected[type] + 1);
+            render();
+          });
+          row.append(button);
+        }
+        group.append(label, row);
+        return group;
+      });
+      list.replaceChildren(...groups);
+      const amount = inventoryValue(selected);
+      this.els["bet-amount"].textContent = `${amount} CHIP`;
+      this.els["bet-total-note"].textContent = amount ? `勝利時は${amount * 2}分が戻ります` : "1枚以上選んでください";
+      this.els["bet-confirm"].disabled = amount <= 0;
+      this.renderChipCollection(this.els["selected-chip-stack"], selected);
     };
-    this.els["bet-multipliers"].querySelectorAll("button").forEach((button) => {
-      button.onclick = () => { multiplier = Number(button.dataset.multiplier); render(); };
-    });
     render();
     overlay.hidden = false;
     await new Promise((resolve) => this.els["bet-confirm"].addEventListener("click", resolve, { once: true }));
     overlay.hidden = true;
-    return { amount, multiplier };
+    return { chips: selected };
   }
 
   /** 破産した本人にだけ、退出か500チップの借り入れ継続かを選ばせる。 */

@@ -138,7 +138,7 @@ export class MatchScreen {
     row.innerHTML = `<span class="player-badge">${suitOf(player.id)}</span>`
       + `<span class="player-main"><strong>${player.name}</strong>`
       + `<span class="player-meta">${state}<span>ID ${player.id}</span><span>全3ゲーム</span></span></span>`
-      + `<span class="player-stat"><small>CHIP</small><b>${player.chips ?? 500}<i>C</i></b></span>`;
+      + `<span class="player-stat"><small>CHIP</small><b>${player.chips ?? 3000}<i>C</i></b></span>`;
     row.addEventListener("click", () => this.invite(player));
     return row;
   }
