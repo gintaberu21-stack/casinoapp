@@ -349,8 +349,10 @@ async function executeSpecial(id, isAi, supplied = null) {
     if (supplied?.actorCardId && supplied?.opponentCardId) ({ actorCardId, opponentCardId } = supplied);
     else if (isAi) ({ actorCardId, opponentCardId } = bestSwap(game[actor], game[opponent]));
     else {
-      opponentCardId = await ui.chooseCards(game[opponent], "相手の全手札から交換する1枚を選択");
-      actorCardId = await ui.chooseCards(game[actor], "自分から渡す1枚を選択");
+      const labels = ui.seatLabels(game);
+      ({ actorCardId, opponentCardId } = await ui.chooseSwapCards(game[actor], game[opponent], {
+        own: labels[actor], opponent: labels[opponent],
+      }));
     }
   }
   if (["selectReverse", "shuffle"].includes(id)) {

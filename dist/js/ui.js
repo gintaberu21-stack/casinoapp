@@ -406,6 +406,56 @@ export class GameUI {
     return this.chooseCards(cards, "相手から捨てるカードを選択");
   }
 
+  async chooseSwapCards(ownCards, opponentCards, labels = {}) {
+    this.els["select-card-heading"].textContent = "交換するカードを1枚ずつ選択";
+    const list = this.els["select-card-list"];
+    list.classList.add("is-swap-picker");
+    const selections = { opponentCardId: null, actorCardId: null };
+    let confirm;
+    const makeGroup = (title, cards, key) => {
+      const group = document.createElement("section");
+      group.className = "swap-card-group";
+      const heading = document.createElement("h3");
+      heading.textContent = title;
+      const cardsNode = document.createElement("div");
+      cardsNode.className = "swap-card-row";
+      cards.forEach((card) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.cardId = card.id;
+        button.dataset.swapKey = key;
+        button.dataset.cue = "select";
+        button.append(this.createCard(card));
+        button.addEventListener("click", () => {
+          cardsNode.querySelectorAll("button").forEach((item) => item.classList.remove("is-selected"));
+          button.classList.add("is-selected");
+          selections[key] = card.id;
+          confirm.disabled = !selections.opponentCardId || !selections.actorCardId;
+        });
+        cardsNode.append(button);
+      });
+      group.append(heading, cardsNode);
+      return group;
+    };
+    confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "swap-confirm";
+    confirm.textContent = "この2枚を交換する";
+    confirm.disabled = true;
+    list.replaceChildren(
+      makeGroup(`${labels.opponent ?? "相手"}の手札`, opponentCards, "opponentCardId"),
+      makeGroup(`${labels.own ?? "自分"}の手札`, ownCards, "actorCardId"),
+      confirm,
+    );
+    this.els["select-card-overlay"].hidden = false;
+    await new Promise((resolve) => confirm.addEventListener("click", resolve, { once: true }));
+    list.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+    await wait(650);
+    this.els["select-card-overlay"].hidden = true;
+    list.classList.remove("is-swap-picker");
+    return selections;
+  }
+
   /** ラウンドごとの表示。勝敗は出さず、いまのお互いのチップだけ見せる。 */
   showStanding(result, game) {
     const duo = this.isVersus(game);
@@ -441,9 +491,12 @@ export class GameUI {
     this.els["result-kicker"].textContent = `FINAL • ${MATCH_ROUNDS} GAMES`;
     this.els["result-title"].textContent = title;
     const debt = result.debts ?? { player: 0, dealer: 0 };
-    this.els["result-score"].textContent = `${result.chips.player}（借金${debt.player}） — ${result.chips.dealer}（借金${debt.dealer}）`;
-    const reason = "所持チップから借金を引いたポイントが多い方の勝ちです";
-    this.els["result-delta"].textContent = `${reason}　もう一回かロビー退出を選んでください`;
+    const net = result.netWorth ?? {
+      player: result.chips.player - debt.player,
+      dealer: result.chips.dealer - debt.dealer,
+    };
+    this.els["result-score"].textContent = `${net.player} — ${net.dealer}`;
+    this.els["result-delta"].textContent = "もう一回かロビー退出を選んでください";
     this.els["result-rematch"].disabled = false;
     this.els["result-rematch"].textContent = "もう一回";
     this.els["result-lobby"].disabled = false;
