@@ -78,6 +78,7 @@ export class CasinoDuelGame {
       stood: swapPair(this.stood),
       autoStood: swapPair(this.autoStood),
       lossShield: swapPair(this.lossShield),
+      revealedSkills: swapPair(this.revealedSkills),
       locked: swapPair(this.locked),
       phase: this.phase,
       actor: swapActor(this.actor),
@@ -90,7 +91,7 @@ export class CasinoDuelGame {
     const fields = [
       "mode", "difficulty", "names", "chips", "inventories", "debts", "baseWager", "wager", "bets", "skills", "matchRound",
       "matchWins", "player", "dealer", "reservedCard", "stood", "autoStood",
-      "lossShield", "locked", "phase", "actor", "dealerRevealed",
+      "lossShield", "revealedSkills", "locked", "phase", "actor", "dealerRevealed",
     ];
     fields.forEach((field) => {
       if (snapshot[field] !== undefined) this[field] = structuredClone(snapshot[field]);
@@ -107,6 +108,7 @@ export class CasinoDuelGame {
     this.stood = { player: false, dealer: false };
     this.autoStood = { player: false, dealer: false };
     this.lossShield = { player: false, dealer: false };
+    this.revealedSkills = { player: false, dealer: false };
     this.locked = { player: false, dealer: false };
     this.wager = this.baseWager;
     this.phase = "idle";
@@ -248,7 +250,10 @@ export class CasinoDuelGame {
 
     if (id === "double") result.wager = this.multiplyWager(2, actor);
     if (id === "triple") result.wager = this.multiplyWager(3, actor);
-    if (id === "shield") this.lossShield[actor] = true;
+    if (id === "shield") {
+      this.revealedSkills[actor] = true;
+      result.revealedSkills = structuredClone(this.skills[opponent]);
+    }
     if (id === "peek") this.reservedCard[actor] = this.drawCard();
     if (id === "selectReverse") {
       const index = Math.max(0, this[opponent].findIndex((card) => card.id === options.cardId));
@@ -343,12 +348,8 @@ export class CasinoDuelGame {
         : valueToInventory(surplusProfit);
       Object.keys(CHIP_TYPES).forEach((type) => { returns[winner][type] += profitChips[type]; });
       this.addInventory(winner, returns[winner]);
-      if (loser && this.lossShield[loser]) {
-        returns[loser].red = 1;
-        this.addInventory(loser, returns[loser]);
-      }
       grossDeltas[winner] = profit;
-      grossDeltas[loser] = -this.bets[loser].amount + (this.lossShield[loser] ? 100 : 0);
+      grossDeltas[loser] = -this.bets[loser].amount;
     }
     const deltas = { ...grossDeltas };
     if (winner) deltas[winner] -= repayments[winner];
@@ -367,7 +368,7 @@ export class CasinoDuelGame {
     return {
       outcome, blackjack, player, dealer, delta, deltas, grossDeltas, repayments, returns, stakes,
       bankrupt, needsLoan, matchComplete, netWorth,
-      shielded: Boolean(loser && this.lossShield[loser]),
+      shielded: false,
       wager: this.wagerFor("player"),
       bets: structuredClone(this.bets),
       round: this.matchRound,

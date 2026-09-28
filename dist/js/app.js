@@ -384,7 +384,7 @@ async function executeSpecial(id, isAi, supplied = null) {
   syncState("specialResult");
   const messages = {
     double: `勝利時の獲得分が2倍の${result.wager}チップに!`, triple: `勝利時の獲得分が3倍の${result.wager}チップに!`,
-    shield: "敗北時の損失を100軽減!", peek: "次に自分が引くカードを確保!",
+    shield: "相手の必殺技カードを公開!", peek: "次に自分が引くカードを確保!",
     selectReverse: "選んだカードを捨てた!", shuffle: "選んだカードを1枚ずつ交換!",
     extraDraw: "1枚引いて、選んだ手札を捨てた!", lock: "相手の次ターンの必殺技を封印!",
   };

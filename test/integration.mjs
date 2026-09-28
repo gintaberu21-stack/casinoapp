@@ -99,6 +99,12 @@ guest.send({ type: "action", to: hostId, payload: { type: "bet", bet: { amount: 
 assert.deepEqual((await host.next("action")).payload, { type: "bet", bet: { amount: 300, multiplier: 2 } });
 host.send({ type: "action", to: guestId, payload: { type: "rematch" } });
 assert.deepEqual((await guest.next("action")).payload, { type: "rematch" });
+host.send({
+  type: "profile",
+  own: { chips: 600, inventory: { red: 1, blue: 1, black: 0 }, debt: 100 },
+  peer: { chips: 500, inventory: { red: 0, blue: 1, black: 0 }, debt: 0 },
+});
+assert.equal((await guest.next("account")).account.debt, 0);
 
 const game = new CasinoDuelGame();
 game.startMatch();
@@ -118,6 +124,16 @@ const result = game.settle();
 assert.deepEqual(result.deltas, { player: 200, dealer: -500 });
 assert.deepEqual(result.returns.player, { red: 4, blue: 0, black: 0 });
 assert.deepEqual(game.chips, { player: 3200, dealer: 2500 });
+
+const revealGame = new CasinoDuelGame();
+revealGame.startMatch();
+revealGame.startRound("player");
+revealGame.phase = "playing";
+revealGame.skills.player = [{ id: "shield", rank: "C", name: "ARCANA EYE" }];
+revealGame.skills.dealer = [{ id: "lock", rank: "B", name: "LOCK" }];
+const revealed = revealGame.applySpecial("player", "shield");
+assert.equal(revealGame.revealedSkills.player, true);
+assert.equal(revealed.revealedSkills[0].id, "lock");
 
 const debtGame = new CasinoDuelGame();
 debtGame.startMatch();

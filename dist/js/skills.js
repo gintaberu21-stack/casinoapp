@@ -7,7 +7,7 @@ export const SPECIALS = [
   { id: "extraDraw", rank: "B", icon: "+1", name: "EXTRA DRAW", short: "DRAW & DROP", description: "カードを1枚引いた後、自分の手札から1枚選んで捨てる。" },
   { id: "lock", rank: "B", icon: "⊘", name: "LOCK", short: "SEAL SKILL", description: "相手の次のターンだけ必殺技を封印する。" },
   { id: "peek", rank: "C", icon: "◉", name: "FUTURE SIGHT", short: "NEXT CARD", description: "次に自分が引くカードを先に確認できる。" },
-  { id: "shield", rank: "C", icon: "◇", name: "SHIELD", short: "LOSS −100", description: "負けたときに奪われるチップを100減らす。" },
+  { id: "shield", rank: "C", icon: "◉", name: "ARCANA EYE", short: "VIEW RIVAL", description: "相手が持っている必殺技カードをすべて見る。" },
 ];
 
 export const RANK_LABELS = { A: "Aランク", B: "Bランク", C: "Cランク" };

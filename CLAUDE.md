@@ -32,7 +32,7 @@
 - チップ表示は相手が右上のヘッダー（`dealer-chip-count`）、自分が自分の手札の左下（`player-chip-count`）。
 - 毎ラウンドの先攻はコイントスで決定し、先攻・後攻を大きく表示。ターンが交代するのはHITかSTANDをしたときだけ（`app.js`の`passTurn()`）。
 - 試合開始時に8種類から重複なしで必殺技を各3枚配布。3ゲームを通して保持し、使ったカードは復活しない。REVERSEとSTEALは削除済み。
-- 必殺技にはランクがある。A=金（SHUFFLE / SELECT REVERSE / TRIPLE BET）、B=従来の紫（DOUBLE BET / EXTRA DRAW / LOCK）、C=シルバー（FUTURE SIGHT / SHIELD）。色は`styles.css`の`.is-rank-a` / `.is-rank-c`で、カード右上にランクのバッジを出す。
+- 必殺技にはランクがある。A=金（SHUFFLE / SELECT REVERSE / TRIPLE BET）、B=従来の紫（DOUBLE BET / EXTRA DRAW / LOCK）、C=シルバー（FUTURE SIGHT / ARCANA EYE）。ARCANA EYEは相手の残り必殺技カードを公開する。色は`styles.css`の`.is-rank-a` / `.is-rank-c`で、カード右上にランクのバッジを出す。
 - 配布は1枚引くごとにランクを重み付き抽選（`RANK_WEIGHTS` A20% / B40% / C40%）してから、そのランクの中から1枚選ぶ。プレイヤーとCPUで交互に引く。**山札が8枚しかないため、6枚配り終えた時点の実際の比率はA27% / B43% / C30%程度になる**（Cが2枚しかなく先に尽きるため）。厳密に20/40/40へ寄せるならCランクのカードを増やす必要がある。
 - DOUBLE BET / TRIPLE BETは固定額ではなく、そのラウンドの賭け額を2倍・3倍にする（`multiplyWager`）。上限は`maxWager()`。
 - 必殺技はターンを消費しない。使ったあとも同じ人の手番が続き、続けて別の必殺技やHIT / STANDを選べる。ただしCPUは演出が長くなりすぎるので1ターンに1枚まで（`cpuSpecialUsed`）。

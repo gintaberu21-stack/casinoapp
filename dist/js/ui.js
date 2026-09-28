@@ -184,7 +184,8 @@ export class GameUI {
     const rival = game.bets?.dealer ?? own;
     this.renderChipCollection(this.els["player-bet-stack"], own.chips);
     this.renderChipCollection(this.els["dealer-bet-stack"], rival.chips);
-    this.els["wager-count"].textContent = `${own.amount ?? 0} / ${rival.amount ?? 0}`;
+    this.els["player-win-payout"].textContent = `WIN ${Math.max(0, (own.amount ?? 0) * ((own.multiplier ?? 1) + 1))}`;
+    this.els["dealer-win-payout"].textContent = `WIN ${Math.max(0, (rival.amount ?? 0) * ((rival.multiplier ?? 1) + 1))}`;
   }
 
   async animateChipPayout(result) {
@@ -264,11 +265,19 @@ export class GameUI {
     this.els["special-list"].replaceChildren(...cards);
     this.els["special-owner"].textContent = game.mode === "duo" ? `★ ${displayActor === "player" ? "PLAYER 1" : "PLAYER 2"} ARCANA` : "★ YOUR ARCANA";
     const opponent = opponentOf(displayActor);
-    this.els["opponent-arcana"].replaceChildren(...game.skills[opponent].map(() => {
-      const back = document.createElement("i");
-      back.title = "相手の必殺技カード";
-      return back;
-    }));
+    const opponentCards = game.revealedSkills?.[displayActor]
+      ? game.skills[opponent].map((special) => {
+        const card = this.createSpecialCard(special, true);
+        card.classList.add("is-revealed-opponent");
+        return card;
+      })
+      : game.skills[opponent].map(() => {
+        const back = document.createElement("i");
+        back.title = "相手の必殺技カード";
+        return back;
+      });
+    this.els["opponent-arcana"].classList.toggle("is-revealed", Boolean(game.revealedSkills?.[displayActor]));
+    this.els["opponent-arcana"].replaceChildren(...opponentCards);
     if (dealing) this.els["special-list"].querySelectorAll(".special-card").forEach((card) => card.disabled = true);
     this.showReservedCard(game, displayActor);
   }
@@ -363,10 +372,12 @@ export class GameUI {
     const secondActor = versusLabels[opponentOf(firstActor)];
     choice.hidden = true;
     overlay.classList.add("is-decided");
+    coin.hidden = true;
     this.els["coin-heading"].textContent = orderHeading;
     this.els["coin-result"].textContent = `${faceLabel} ／ ${actorLabel}が先攻・${secondActor}が後攻`;
     await wait(1500);
     overlay.hidden = true;
+    coin.hidden = false;
     return firstActor;
   }
 

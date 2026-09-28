@@ -150,6 +150,7 @@ wss.on("connection", (socket) => {
       if (socket.peerId && message.peer) {
         const peer = await store.updateAccount(socket.peerId, normalize(message.peer));
         await store.updatePlayerProfile(socket.peerId, publicAccount(peer));
+        sendTo(socket.peerId, { type: "account", account: publicAccount(peer) });
       }
       send(socket, { type: "account", account: publicAccount(own) });
       await broadcastRoster();
