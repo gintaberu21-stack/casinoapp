@@ -184,8 +184,7 @@ export class GameUI {
     const rival = game.bets?.dealer ?? own;
     this.renderChipCollection(this.els["player-bet-stack"], own.chips);
     this.renderChipCollection(this.els["dealer-bet-stack"], rival.chips);
-    this.els["player-win-payout"].textContent = `WIN ${Math.max(0, (own.amount ?? 0) * ((own.multiplier ?? 1) + 1))}`;
-    this.els["dealer-win-payout"].textContent = `WIN ${Math.max(0, (rival.amount ?? 0) * ((rival.multiplier ?? 1) + 1))}`;
+    this.els["player-win-payout"].textContent = `勝利時 ${Math.max(0, (own.amount ?? 0) * ((own.multiplier ?? 1) + 1))}`;
   }
 
   async animateChipPayout(result) {
