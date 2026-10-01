@@ -86,6 +86,7 @@ button{align-items:center;justify-content:center;text-align:center}
 .start-button span,.start-button small,.account-create-panel button span,.account-create-panel button small,.game-action small,.game-action strong{width:100%;text-align:center}
 .game-screen .table-header{grid-template-columns:46px auto minmax(0,1fr) auto!important;column-gap:12px;min-height:68px}
 .game-screen .table-header>.game-logo{grid-column:2;justify-self:start;justify-content:flex-start;gap:14px;margin:0;font-size:inherit}
+.game-screen .table-header>#back-lobby[hidden]+.game-logo{grid-column:1/3}
 .game-brand{display:grid!important;gap:0;color:var(--cream)!important;font:800 .92rem/.82 var(--serif);letter-spacing:.08em;text-align:center}
 .game-brand b,.game-brand i{display:block;font-style:normal}
 .game-brand b{color:var(--gold)!important}
@@ -103,7 +104,7 @@ button{align-items:center;justify-content:center;text-align:center}
 .special-card.tarot-card b{margin:5px 0 4px;font-size:1.45rem}
 .special-card.tarot-card span:not(.tarot-stars){font-size:clamp(.58rem,1.7vw,.76rem)}
 .special-card.tarot-card small{font-size:clamp(.48rem,1.3vw,.58rem)}
-@media(max-width:520px){.game-screen .table-header{grid-template-columns:38px auto minmax(0,1fr) auto!important;column-gap:5px;padding-inline:7px!important}.game-screen .table-header>.game-logo{grid-column:2;gap:6px;margin:0;font-size:inherit}.game-brand{font-size:.7rem}.nav-win-payout{padding:6px 5px;font-size:.54rem}.game-screen .rival-chips{position:static;grid-column:4}.special-tray{grid-template-columns:78px minmax(0,1fr);min-height:108px;padding-left:6px!important;gap:3px}.special-list{gap:4px;padding-inline:1px}.special-card.tarot-card{flex-basis:72px;width:calc((100% - 8px)/3);max-width:72px;min-height:0;padding:6px 2px 5px}.special-card.tarot-card b{margin:3px 0;font-size:1.1rem}.deck-stack .next-card-preview{right:0;bottom:0;width:46px}.deck-stack .preview-card{width:46px!important;min-width:46px!important}}
+@media(max-width:520px){.game-screen .table-header{grid-template-columns:38px auto minmax(0,1fr) auto!important;column-gap:5px;padding-inline:7px!important}.game-screen .table-header>.game-logo{grid-column:2;gap:6px;margin:0;font-size:inherit}.game-screen .table-header>#back-lobby[hidden]+.game-logo{grid-column:1/3}.game-brand{font-size:.7rem}.nav-win-payout{padding:6px 5px;font-size:.54rem}.game-screen .rival-chips{position:static;grid-column:4}.special-tray{grid-template-columns:78px minmax(0,1fr);min-height:108px;padding-left:6px!important;gap:3px}.special-list{gap:4px;padding-inline:1px}.special-card.tarot-card{flex-basis:72px;width:calc((100% - 8px)/3);max-width:72px;min-height:0;padding:6px 2px 5px}.special-card.tarot-card b{margin:3px 0;font-size:1.1rem}.deck-stack .next-card-preview{right:0;bottom:0;width:46px}.deck-stack .preview-card{width:46px!important;min-width:46px!important}}
 @media(max-height:720px){.table-felt{grid-template-rows:minmax(105px,1fr) 48px minmax(122px,1fr) 98px}.special-tray{min-height:98px;align-items:end}.special-card.tarot-card{height:86px;aspect-ratio:auto}.deck-stack .next-card-preview{bottom:0}}
 
 /* ベット画面 */
