@@ -1,4 +1,5 @@
 :root{color-scheme:dark;--ink:#090607;--wine:#31070d;--wine-2:#7b101e;--felt:#23070b;--gold:#d4a638;--gold-light:#ffe59a;--cream:#fff8e8;--muted:#c7bba8;--line:rgba(217,174,66,.36);--number-font:Arial,"Helvetica Neue",sans-serif;font-family:Georgia,"Yu Mincho","Hiragino Mincho ProN",serif}
+.tray-label #special-owner{white-space:nowrap}
 /* Keep the approved 498 x 874 game composition on every device. Wide screens
    get a centered cabinet instead of stretching/reflowing the table. */
 .game-screen.is-active{width:min(100vw,498px);height:min(100svh,874px);min-height:0;margin:auto;overflow:hidden;box-shadow:0 0 70px rgba(0,0,0,.82),0 0 0 1px rgba(217,174,66,.18)}

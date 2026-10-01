@@ -262,7 +262,7 @@ export class GameUI {
     const canUse = game.phase === "playing" && game.actor === displayActor && !game.locked[displayActor];
     const cards = game.skills[displayActor].map((special) => this.createSpecialCard(special, !canUse));
     this.els["special-list"].replaceChildren(...cards);
-    this.els["special-owner"].textContent = game.mode === "duo" ? `★ ${displayActor === "player" ? "PLAYER 1" : "PLAYER 2"} ARCANA` : "★ YOUR ARCANA";
+    this.els["special-owner"].textContent = game.mode === "duo" ? `★ ${displayActor === "player" ? "PLAYER 1" : "PLAYER 2"} ARCADE` : "★ YOUR ARCADE";
     const opponent = opponentOf(displayActor);
     const opponentCards = game.revealedSkills?.[displayActor]
       ? game.skills[opponent].map((special) => {
