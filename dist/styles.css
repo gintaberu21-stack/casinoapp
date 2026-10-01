@@ -1,4 +1,8 @@
 :root{color-scheme:dark;--ink:#090607;--wine:#31070d;--wine-2:#7b101e;--felt:#23070b;--gold:#d4a638;--gold-light:#ffe59a;--cream:#fff8e8;--muted:#c7bba8;--line:rgba(217,174,66,.36);--number-font:Arial,"Helvetica Neue",sans-serif;font-family:Georgia,"Yu Mincho","Hiragino Mincho ProN",serif}
+/* Keep the approved 498 x 874 game composition on every device. Wide screens
+   get a centered cabinet instead of stretching/reflowing the table. */
+.game-screen.is-active{width:min(100vw,498px);height:min(100svh,874px);min-height:0;margin:auto;overflow:hidden;box-shadow:0 0 70px rgba(0,0,0,.82),0 0 0 1px rgba(217,174,66,.18)}
+@media(max-width:498px){.game-screen.is-active{width:100%;box-shadow:none}}
 /* UI consistency overrides */
 #home-player-balance,#my-id,#dealer-chip-count,#player-chip-count,#dealer-debt-count,#player-debt-count,#dealer-score,#player-score,#wager-count,#profile-id,#stats-matches,#stats-wins,#stats-losses,#stats-draws,#stats-chips,#stats-debt,#result-score,#bet-my-chips,#bet-rival-chips,#bet-amount,#standing-player,#standing-dealer,#standing-player-delta,#standing-dealer-delta,#debt-balance,#debt-total,.choice-number,.round-progress,.rank-badge,.card-corner,.chip-delta,.numeric{font-family:var(--number-font);font-variant-numeric:tabular-nums lining-nums}
 button{text-align:center}.icon-button,.search-clear,.choice-mark,.special-card b,.room-seat span,.invite-suit{display:grid;place-items:center}.icon-button,.search-clear{padding:0}.coin-choice button,.filter-chip,.game-action,.result-actions button,.invite-actions button,.debt-actions button{justify-content:center;text-align:center}
