@@ -76,6 +76,32 @@ button{text-align:center}.icon-button,.search-clear,.choice-mark,.special-card b
 @media(max-width:520px){.game-screen .table-header>.game-logo{justify-content:flex-start;gap:5px;margin-left:4px;font-size:.69rem}.nav-win-payout{padding:3px 4px;font-size:.52rem}.game-screen .rival-chips{right:8px}.deck-stack .next-card-preview{right:calc(100% + 8px);bottom:0}}
 @media(max-height:720px){.deck-stack .next-card-preview{bottom:0}}
 
+/* Reference layout: centered labels, compact two-line brand and full tarot cards */
+button{align-items:center;justify-content:center;text-align:center}
+.start-button,.account-create-panel button,.game-action,.coin-choice button,.result-actions button,.invite-actions button,.debt-actions button,.room-leave,.swap-confirm{display:grid;place-content:center;text-align:center}
+.start-button span,.start-button small,.account-create-panel button span,.account-create-panel button small,.game-action small,.game-action strong{width:100%;text-align:center}
+.game-screen .table-header{grid-template-columns:46px auto minmax(0,1fr) auto!important;column-gap:12px;min-height:68px}
+.game-screen .table-header>.game-logo{grid-column:2;justify-self:start;justify-content:flex-start;gap:14px;margin:0;font-size:inherit}
+.game-brand{display:grid!important;gap:0;color:var(--cream)!important;font:800 .92rem/.82 var(--serif);letter-spacing:.08em;text-align:center}
+.game-brand b,.game-brand i{display:block;font-style:normal}
+.game-brand b{color:var(--gold)!important}
+.game-brand i{color:var(--cream)}
+.nav-win-payout{padding:8px 11px;font-size:.7rem;box-shadow:inset 0 0 12px rgba(212,166,56,.08)}
+.game-screen .rival-chips{position:static;grid-column:4;justify-self:end}
+.opponent-arcana:not(.is-revealed){display:none}
+.deck-stack:has(.next-card-preview:not([hidden]))>span{opacity:0}
+.deck-stack .next-card-preview{right:0;bottom:0;width:50px;filter:drop-shadow(0 0 12px rgba(255,216,104,.62))}
+.deck-stack .next-card-preview::after{display:none}
+.deck-stack .preview-card{width:50px!important;min-width:50px!important}
+.special-tray{grid-template-columns:minmax(105px,auto) minmax(0,1fr);min-height:116px;padding-top:8px!important;padding-bottom:6px!important}
+.special-list{align-items:flex-end;justify-content:center;gap:10px;padding:0 6px;overflow:visible}
+.special-card.tarot-card{flex:0 1 86px;width:min(28%,86px);min-height:0;aspect-ratio:5/7;padding:9px 4px 7px}
+.special-card.tarot-card b{margin:5px 0 4px;font-size:1.45rem}
+.special-card.tarot-card span:not(.tarot-stars){font-size:clamp(.58rem,1.7vw,.76rem)}
+.special-card.tarot-card small{font-size:clamp(.48rem,1.3vw,.58rem)}
+@media(max-width:520px){.game-screen .table-header{grid-template-columns:38px auto minmax(0,1fr) auto!important;column-gap:5px;padding-inline:7px!important}.game-screen .table-header>.game-logo{grid-column:2;gap:6px;margin:0;font-size:inherit}.game-brand{font-size:.7rem}.nav-win-payout{padding:6px 5px;font-size:.54rem}.game-screen .rival-chips{position:static;grid-column:4}.special-tray{grid-template-columns:78px minmax(0,1fr);min-height:108px;padding-left:6px!important;gap:3px}.special-list{gap:4px;padding-inline:1px}.special-card.tarot-card{flex-basis:72px;width:calc((100% - 8px)/3);max-width:72px;min-height:0;padding:6px 2px 5px}.special-card.tarot-card b{margin:3px 0;font-size:1.1rem}.deck-stack .next-card-preview{right:0;bottom:0;width:46px}.deck-stack .preview-card{width:46px!important;min-width:46px!important}}
+@media(max-height:720px){.table-felt{grid-template-rows:minmax(105px,1fr) 48px minmax(122px,1fr) 98px}.special-tray{min-height:98px;align-items:end}.special-card.tarot-card{height:86px;aspect-ratio:auto}.deck-stack .next-card-preview{bottom:0}}
+
 /* ベット画面 */
 .bet-overlay,.standing-overlay{position:fixed;z-index:125;inset:0;display:grid;place-items:center;padding:20px;background:rgba(4,2,3,.92);backdrop-filter:blur(9px)}
 .bet-panel,.standing-panel{width:min(100%,440px);padding:28px 22px;text-align:center;background:linear-gradient(145deg,#3c0912,#0c0708);border:1px solid var(--gold);box-shadow:0 25px 80px #000;animation:modal-in .35s ease both}
