@@ -364,6 +364,8 @@ async function executeSpecial(id, isAi, supplied = null) {
   const result = game.applySpecial(actor, id, { cardId, actorCardId, opponentCardId });
   if (!result.ok) { ui.toast(result.reason); busy = false; await enterTurn(false); return; }
 
+  if (id === "shield") await ui.showOpponentSpecialCards(result.revealedSkills, isAi);
+
   if (id === "extraDraw") {
     await ui.addCard(game, actor, result.added);
     if (isOnlineHost() && actor === "dealer" && !supplied?.discardId) {
@@ -381,7 +383,11 @@ async function executeSpecial(id, isAi, supplied = null) {
   }
   await ui.animateChipChange(game, chipsBefore);
   ui.renderSpecials(game);
-  syncState("specialResult");
+  syncState("specialResult", null, id === "shield" ? {
+    id,
+    actor: opponentOf(actor),
+    revealedSkills: structuredClone(result.revealedSkills),
+  } : { id, actor: opponentOf(actor) });
   const messages = {
     double: `勝利時の獲得分が2倍の${result.wager}チップに!`, triple: `勝利時の獲得分が3倍の${result.wager}チップに!`,
     shield: "相手の必殺技カードを公開!", peek: "次に自分が引くカードを確保!",
@@ -390,7 +396,6 @@ async function executeSpecial(id, isAi, supplied = null) {
   };
   ui.toast(messages[id]);
   if (isAi) await wait(CPU_PACE.afterAction);
-  clearTurnLock(actor);
   // 必殺技で手札が変わるので、双方の自動STANDを見直す。
   game.refreshAutoStand();
   if (game.isRoundOver()) { await wait(350); await finishRound(); return; }
@@ -616,6 +621,9 @@ async function receiveHostState(payload) {
     const special = getSpecial(payload.action?.id);
     if (special) await ui.showSpecial(special, payload.action?.actor ?? game.actor, false);
     return;
+  }
+  if (payload.event === "specialResult" && payload.action?.id === "shield" && payload.action.revealedSkills) {
+    await ui.showOpponentSpecialCards(payload.action.revealedSkills, payload.action.actor !== "player");
   }
   if (payload.event === "coinToss") {
     busy = true;

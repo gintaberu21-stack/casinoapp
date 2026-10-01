@@ -416,6 +416,17 @@ export class GameUI {
     return this.chooseCards(cards, "相手から捨てるカードを選択");
   }
 
+  async showOpponentSpecialCards(skills, isAi = false) {
+    this.els["select-card-heading"].textContent = isAi ? "自分の必殺技カードが公開された" : "相手の必殺技カードを公開";
+    const list = this.els["select-card-list"];
+    list.classList.add("is-skill-reveal");
+    list.replaceChildren(...skills.map((special) => this.createSpecialCard(special, true)));
+    this.els["select-card-overlay"].hidden = false;
+    await wait(isAi ? 2200 : 2800);
+    this.els["select-card-overlay"].hidden = true;
+    list.classList.remove("is-skill-reveal");
+  }
+
   async chooseSwapCards(ownCards, opponentCards, labels = {}) {
     this.els["select-card-heading"].textContent = "交換するカードを1枚ずつ選択";
     const list = this.els["select-card-list"];
