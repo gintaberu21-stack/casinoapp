@@ -5,11 +5,13 @@ const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
 
 /** 1試合のラウンド数。 */
 export const MATCH_ROUNDS = 3;
+export const DIFFICULTY_PAYOUTS = { easy: 1.3, normal: 2, hard: 3 };
 /** 開始時の持ちチップ。 */
 export const CHIP_TYPES = {
   red: { value: 100, label: "RED" },
   blue: { value: 500, label: "BLUE" },
   black: { value: 1000, label: "BLACK" },
+  white: { value: 1, label: "WHITE" },
 };
 export const STARTING_INVENTORY = { red: 5, blue: 3, black: 1 };
 export const inventoryValue = (inventory = {}) => Object.entries(CHIP_TYPES)
@@ -21,6 +23,7 @@ export const valueToInventory = (amount) => {
     inventory[type] = Math.floor(remaining / CHIP_TYPES[type].value);
     remaining %= CHIP_TYPES[type].value;
   });
+  if (remaining > 0) inventory.white = remaining;
   return inventory;
 };
 export const STARTING_CHIPS = inventoryValue(STARTING_INVENTORY);
@@ -142,6 +145,7 @@ export class CasinoDuelGame {
   /** 選んだ現物チップを手元からテーブルへ移す。 */
   setBet(actor, selection = {}) {
     const selected = { red: 0, blue: 0, black: 0 };
+    if ((this.inventories[actor].white ?? 0) > 0) selected.white = 0;
     Object.keys(selected).forEach((type) => {
       selected[type] = Math.max(0, Math.min(
         Math.round(Number(selection.chips?.[type]) || 0),
@@ -168,18 +172,30 @@ export class CasinoDuelGame {
     return bet.amount * bet.multiplier;
   }
 
+  winPayoutFor(actor) {
+    const bet = this.bets[actor];
+    return bet ? Math.round(bet.amount * this.basePayoutMultiplier() * bet.multiplier) : 0;
+  }
+
+  basePayoutMultiplier() {
+    return this.mode === "solo" ? DIFFICULTY_PAYOUTS[this.difficulty] ?? 2 : 2;
+  }
+
   addInventory(actor, addition) {
-    Object.keys(CHIP_TYPES).forEach((type) => { this.inventories[actor][type] += Number(addition?.[type]) || 0; });
+    Object.keys(CHIP_TYPES).forEach((type) => {
+      const count = Number(addition?.[type]) || 0;
+      if (count) this.inventories[actor][type] = (this.inventories[actor][type] ?? 0) + count;
+    });
     this.chips[actor] = inventoryValue(this.inventories[actor]);
   }
 
-  /** 賭け額を倍にする必殺技用。相手が払えない分までは増やさない。 */
+  /** 勝利時の受け取り総額を増やす。複数の倍率は掛け合わせる。 */
   multiplyWager(factor, actor = "player") {
     const bet = this.bets[actor] ?? { amount: this.baseWager, multiplier: 1 };
     bet.multiplier *= factor;
     this.bets[actor] = bet;
     if (actor === "player") this.wager = this.wagerFor(actor);
-    return this.wagerFor(actor);
+    return this.winPayoutFor(actor);
   }
 
   startRound(firstActor) {
@@ -217,7 +233,7 @@ export class CasinoDuelGame {
   /**
    * 21以上になった人はそれ以上引けないので自動でSTAND扱いにする。
    * 必殺技でカードを減らされて21未満に戻ったら、また行動できるようにする。
-   * 自分の意思で押したSTANDは解除しない。
+   * 手動STANDは通常維持するが、相手に手札を変更された場合は別途見直す。
    */
   refreshAutoStand() {
     ["player", "dealer"].forEach((actor) => {
@@ -228,6 +244,12 @@ export class CasinoDuelGame {
         this.autoStood[actor] = false;
       }
     });
+  }
+
+  refreshStandAfterAttack(actor) {
+    const mustStand = this.score(actor) >= 21;
+    this.stood[actor] = mustStand;
+    this.autoStood[actor] = mustStand;
   }
 
   switchActor() {
@@ -258,6 +280,7 @@ export class CasinoDuelGame {
     if (id === "selectReverse") {
       const index = Math.max(0, this[opponent].findIndex((card) => card.id === options.cardId));
       [result.removed] = this[opponent].splice(index, 1);
+      if (result.removed) this.refreshStandAfterAttack(opponent);
     }
     if (id === "shuffle") {
       const actorIndex = this[actor].findIndex((card) => card.id === options.actorCardId);
@@ -272,6 +295,7 @@ export class CasinoDuelGame {
       this[opponent][opponentIndex] = actorCard;
       result.given = actorCard;
       result.taken = opponentCard;
+      this.refreshStandAfterAttack(opponent);
     }
     if (id === "extraDraw") {
       result.added = this.hit(actor);
@@ -307,9 +331,9 @@ export class CasinoDuelGame {
   dealerShouldHit() {
     const dealer = this.score("dealer");
     const player = this.score("player");
-    if (this.difficulty === "easy") return dealer < 15;
+    if (this.difficulty === "easy") return dealer < 19;
     if (this.difficulty === "hard") return dealer < 17 || (dealer < player && dealer < 21);
-    return dealer < 17;
+    return dealer < 20;
   }
 
   isRoundOver() {
@@ -338,21 +362,30 @@ export class CasinoDuelGame {
       });
     } else {
       const bet = this.bets[winner];
-      const profit = bet.amount * bet.multiplier;
-      repayments[winner] = Math.min(profit, this.debts[winner]);
-      this.debts[winner] -= repayments[winner];
-      const surplusProfit = profit - repayments[winner];
+      const profit = this.winPayoutFor(winner) - bet.amount;
       returns[winner] = { ...bet.chips };
-      const profitChips = repayments[winner] === 0 && bet.multiplier === 1
+      const profitChips = bet.multiplier === 1 && this.basePayoutMultiplier() === 2
         ? bet.chips
-        : valueToInventory(surplusProfit);
-      Object.keys(CHIP_TYPES).forEach((type) => { returns[winner][type] += profitChips[type]; });
+        : valueToInventory(profit);
+      Object.keys(CHIP_TYPES).forEach((type) => {
+        if (profitChips[type]) returns[winner][type] = (returns[winner][type] ?? 0) + profitChips[type];
+      });
       this.addInventory(winner, returns[winner]);
       grossDeltas[winner] = profit;
       grossDeltas[loser] = -this.bets[loser].amount;
     }
     const deltas = { ...grossDeltas };
-    if (winner) deltas[winner] -= repayments[winner];
+    for (const actor of ["player", "dealer"]) {
+      // 精算後の手持ちから返済し、次のゲーム用に100チップを残す。
+      repayments[actor] = Math.min(this.debts[actor], Math.max(0, this.chips[actor] - 100));
+      if (repayments[actor] > 0) {
+        this.debts[actor] -= repayments[actor];
+        this.chips[actor] -= repayments[actor];
+        this.inventories[actor] = valueToInventory(this.chips[actor]);
+        returns[actor] = valueToInventory(Math.max(0, inventoryValue(returns[actor]) - repayments[actor]));
+      }
+      deltas[actor] -= repayments[actor];
+    }
     const delta = deltas.player;
     this.phase = "settled";
     this.dealerRevealed = true;
@@ -384,8 +417,9 @@ export class CasinoDuelGame {
 
   /** チップ切れから続行するため、500チップを借りる。 */
   takeLoan(actor, amount = LOAN_AMOUNT) {
+    amount = Math.max(0, Math.round(Number(amount) || 0));
     this.debts[actor] += amount;
-    this.addInventory(actor, valueToInventory(amount));
+    this.addInventory(actor, { red: Math.floor(amount / 100), white: amount % 100 });
     return { chips: this.chips[actor], debt: this.debts[actor], amount };
   }
 }

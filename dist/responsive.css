@@ -1,0 +1,249 @@
+﻿/* Layout follows the CSS viewport, independently of the display's pixel density. */
+:root {
+  --layout-gap: clamp(6px, 1.5vw, 12px);
+  --table-card-width: clamp(52px, min(18vw, 8dvh), 104px);
+  --special-card-width: clamp(80px, 22vw, 112px);
+}
+.app-shell { overflow: visible; }
+.screen { min-width: 0; }
+.game-screen.is-active {
+  width: 100%;
+  max-width: 90rem;
+  height: 100svh;
+  height: 100dvh;
+  min-height: calc(560px + env(safe-area-inset-top) + env(safe-area-inset-bottom));
+  margin-inline: auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: visible;
+}
+.game-screen .table-header {
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  gap: var(--layout-gap);
+  padding: calc(8px + env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left)) !important;
+}
+.game-screen .table-header > .game-logo,
+.game-screen .table-header > #back-lobby[hidden] + .game-logo {
+  grid-column: 2;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--layout-gap);
+}
+.game-screen .table-header > #back-lobby[hidden] + .game-logo { grid-column: 1 / 3; }
+.game-screen .rival-chips { grid-column: 3; min-width: 0; max-width: 100%; }
+.game-brand { font-size: clamp(.7rem, 2vw, 1rem); }
+.game-screen .table-header { position: relative; z-index: 20; }
+.game-title { position: relative; display: flex; flex-direction: column; align-items: center; }
+.game-help-toggle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 44px; height: 44px; padding: 8px; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.game-help-toggle span { width: 20px; height: 2px; background: var(--gold-light); }
+.game-help-anchor { position: absolute; top: 4px; left: 4px; z-index: 30; }
+.game-screen .dealer-zone .hand-heading { padding-left: 44px; }
+.game-help-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.game-help-menu:not([hidden]) { display: flex; flex-direction: column; animation: game-help-enter .3s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes game-help-enter {
+  from { opacity: 0; transform: translate(-12px, -8px); }
+  to { opacity: 1; transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .game-help-menu:not([hidden]) { animation: none; } }
+.game-help-menu { position: absolute; top: 100%; left: 0; width: max-content; max-width: calc(100vw - 32px); padding: 6px; background: #210c10; border: 1px solid var(--gold); box-shadow: 0 12px 28px #0009; }
+.game-help-menu button { min-height: 44px; padding: 10px 16px; text-align: left; color: var(--cream); background: transparent; border: 0; font: 400 .85rem Arial, sans-serif; cursor: pointer; }
+.game-help-menu button:hover, .game-help-menu button:focus-visible { background: rgba(212,166,56,.25); }
+.nav-win-payout { padding: 5px 6px; font-size: clamp(.56rem, 1.5vw, .75rem); }
+.game-screen .table-felt {
+  position: relative;
+  grid-template-rows: minmax(calc(var(--table-card-width) * 1.4 + 50px), 1fr) auto minmax(calc(var(--table-card-width) * 1.4 + 120px), 1.1fr) auto;
+  gap: var(--layout-gap);
+  padding: 10px max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left));
+  overflow: visible;
+}
+.game-screen .hand-zone { align-content: center; gap: 6px; min-width: 0; }
+.game-screen .dealer-zone .hand-heading { position: static; margin: 0; }
+.game-screen .card-hand {
+  min-height: calc(var(--table-card-width) * 1.4);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  justify-content: safe center;
+  padding: 4px 0 10px 18px;
+}
+.game-screen .card-hand .playing-card {
+  width: var(--table-card-width);
+  flex: 0 0 var(--table-card-width);
+}
+.game-screen .player-heading { margin: 0; }
+.game-screen .my-chips { position: static; justify-self: start; margin-top: 0; }
+.game-screen .hand-heading h2 { max-width: 55vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: clamp(.9rem, 2.5vw, 1.35rem); }
+.game-screen .table-center {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: "progress progress progress" "pot status deck";
+  gap: 4px var(--layout-gap);
+  align-items: center;
+  min-width: 0;
+}
+.game-screen .table-center .round-progress {
+  grid-area: progress;
+  position: static;
+  justify-self: center;
+  transform: none !important;
+}
+.game-screen .table-center .chip-pot {
+  grid-area: pot;
+  position: static;
+  min-width: 0;
+  max-width: 100%;
+  justify-self: start;
+}
+.game-screen .table-center .round-status { grid-area: status; min-width: 0; padding: 8px 4px; letter-spacing: .08em; overflow-wrap: anywhere; }
+.game-screen .table-center .deck-stack { grid-area: deck; position: relative; right: auto; justify-self: end; }
+.game-screen .pot-sides { gap: 0; }
+.game-screen .special-tray {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  gap: 6px;
+  padding: 8px 0 !important;
+}
+.game-screen .tray-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 0; }
+.game-screen .tray-label span { white-space: normal; }
+.game-screen .tray-label small { margin: 0; }
+.game-screen .opponent-arcana { margin: 0; min-width: 0; flex-wrap: wrap; }
+.game-screen .special-list { display: flex; flex-wrap: nowrap; align-items: stretch; justify-content: safe center; gap: var(--layout-gap); min-width: 0; max-width: 100%; overflow-x: auto; padding: 4px 0; }
+.game-screen .special-list .special-card.tarot-card {
+  flex: 0 0 var(--special-card-width);
+  width: var(--special-card-width);
+  max-width: none;
+  height: 100px;
+  min-height: 84px;
+  aspect-ratio: auto;
+  margin: 0;
+  padding: 7px 4px;
+}
+.game-screen .special-card.tarot-card span:not(.tarot-stars) { font-size: clamp(.62rem, 1.7vw, .9rem); overflow-wrap: anywhere; }
+.game-screen .special-card.tarot-card small { font-size: clamp(.5rem, 1.3vw, .7rem); }
+/* Revealed opponent cards get their own row and never narrow our skill row. */
+.game-screen .special-tray:has(.opponent-arcana.is-revealed) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.game-screen .opponent-arcana.is-revealed {
+  flex-basis: 100%;
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.game-screen .action-dock {
+  gap: var(--layout-gap);
+  padding: 8px max(10px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+.game-screen .game-action { min-height: 52px; }
+
+/* The preview and its card faces always sit above the decorative deck backs. */
+.game-screen .table-center { z-index: 6; }
+.game-screen .deck-stack { isolation: isolate; }
+.game-screen .deck-stack > span { z-index: 0; }
+.game-screen .deck-stack .next-card-preview { z-index: 10; }
+.game-screen .deck-stack .preview-card { z-index: 1; }
+
+/* Remain readable after the entrance, including reduced-motion mode. */
+.special-overlay { z-index: 180; }
+.special-focus {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  animation: special-enter .6s cubic-bezier(.15,.9,.25,1) both;
+}
+.special-focus h2 { font-size: clamp(1.25rem, 6vw, 2.1rem); overflow-wrap: anywhere; }
+.special-burst { pointer-events: none; z-index: 0; }
+@keyframes special-enter {
+  from { opacity: 0; transform: translateY(35px) scale(.85); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Panels can scroll on short screens and when the software keyboard is open. */
+.coin-overlay, .select-card-overlay, .bet-overlay, .standing-overlay,
+.invite-overlay, .room-overlay, .debt-overlay, .account-create-overlay,
+.handoff-overlay, .result-overlay {
+  overflow-y: auto;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+.coin-panel, .select-card-panel, .bet-panel, .standing-panel, .invite-panel,
+.room-panel, .debt-panel, .account-create-panel, .handoff-card, .result-panel {
+  min-width: 0;
+  max-height: calc(100dvh - max(24px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom)));
+  overflow-y: auto;
+  padding: clamp(16px, 4vw, 30px) clamp(12px, 3vw, 24px);
+  overflow-wrap: anywhere;
+}
+.profile-bar { grid-template-columns: minmax(0, 1fr) auto; }
+.profile-bar > button:first-child, .profile-bar button > span:nth-child(2) { min-width: 0; }
+.profile-bar strong { max-width: 100%; }
+.profile-avatar { flex-shrink: 0; }
+.search-row { grid-template-columns: minmax(0, 1fr) auto; }
+.search-field { min-width: 0; }
+.search-submit { padding-inline: clamp(12px, 3vw, 24px); }
+.player-row, .match-banner { min-width: 0; }
+.player-main strong, .room-seat strong { overflow-wrap: anywhere; }
+.chip-token-row { gap: 5px; }
+.bet-chip-token { width: 44px; height: 44px; }
+.bet-chip-token .casino-chip { left: 4px; bottom: 12px; }
+.casino-chip.is-white { --chip: #cbd5e1; --chip-dark: #64748b; }
+
+@media (max-height: 740px) {
+  .game-screen .table-header { min-height: 52px; }
+  .game-screen .table-felt { grid-template-rows: minmax(calc(var(--table-card-width) * 1.4 + 50px), 1fr) auto minmax(calc(var(--table-card-width) * 1.4 + 120px), 1fr) auto; gap: 4px; padding-block: 5px; }
+  .game-screen .special-list .special-card.tarot-card { min-height: 84px; height: 84px; padding-block: 4px; }
+  .game-screen .special-card.tarot-card b { margin: 2px 0; font-size: 1.1rem; }
+  .lobby-frame { padding-block: 20px; }
+  .lobby-screen { padding-block: max(12px, env(safe-area-inset-top)); }
+  .game-screen.is-active:has(.opponent-arcana.is-revealed) { height: auto; }
+  .game-screen:has(.opponent-arcana.is-revealed) .action-dock { position: sticky; bottom: 0; }
+}
+@media (max-height: 640px) {
+  .game-screen.is-active { height: auto; min-height: 100dvh; }
+  .game-screen .action-dock { position: sticky; bottom: 0; }
+}
+@media (min-width: 600px) {
+  .game-screen .table-felt { padding-inline: clamp(18px, 5vw, 90px); }
+  .game-screen .special-tray { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: center; }
+  .game-screen .special-tray:has(.opponent-arcana.is-revealed) { grid-template-columns: minmax(0, 1fr); }
+  .game-screen .special-list .special-card.tarot-card { min-height: 112px; height: 112px; }
+}
+.difficulty-list button { column-gap: 20px; }
+.difficulty-list button {
+  transition: background-color .12s ease, box-shadow .12s ease, color .12s ease;
+}
+.difficulty-list button.is-selected {
+  color: #fff8df;
+  background: rgba(191, 135, 32, .4);
+  border-color: #ffe18a;
+  box-shadow: inset 0 0 22px rgba(255, 218, 112, .22), 0 0 12px rgba(255, 218, 112, .3);
+}
+.difficulty-list small { min-width: 0; }
+.help-nav { flex-wrap: wrap; row-gap: 10px; }
+.game-guide { min-height: 260px; touch-action: pan-y; }
+.guide-slide:not([hidden]) { animation: modal-in .2s ease both; }
+.guide-number { color: var(--gold); font: 700 2.5rem Arial, sans-serif; }
+.guide-slide h3 { margin: 12px 0; color: var(--gold-light); font-size: 1.3rem; }
+.guide-slide p { color: var(--cream); font-size: .9rem; line-height: 1.8; }
+.guide-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; }
+.guide-controls button { width: 48px; min-height: 44px; border: 1px solid var(--gold); background: #321018; color: var(--gold-light); font-size: 1.3rem; cursor: pointer; }
+.guide-controls button:active { background: #755026; }
+.guide-controls span { color: var(--gold-light); font: 700 .9rem Arial, sans-serif; }
+.guide-hint { margin: 12px 0 0; text-align: center; color: var(--muted); font-size: .72rem; }
+@media (prefers-reduced-motion: reduce) { .guide-slide:not([hidden]) { animation: none; } }
+
+@media (orientation: landscape) and (max-height: 600px) and (min-width: 600px) {
+  .game-screen .table-felt {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "dealer player" "center center" "skills skills";
+  }
+  .game-screen .dealer-zone { grid-area: dealer; }
+  .game-screen .player-zone { grid-area: player; }
+  .game-screen .dealer-zone .hand-heading { justify-content: center; }
+  .game-screen .table-center { grid-area: center; }
+  .game-screen .special-tray { grid-area: skills; }
+  .game-screen .my-chips { justify-self: center; }
+  .game-screen .hand-heading h2 { max-width: 30vw; }
+}
+

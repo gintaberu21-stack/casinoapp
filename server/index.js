@@ -36,7 +36,12 @@ app.get("/api/matches", async (_request, response) => {
 
 const server = http.createServer(app);
 const sockets = new Map();
+let operations = Promise.resolve();
+const enqueue = (operation) => {
+  operations = operations.then(operation).catch((error) => console.error("[ws]", error.message));
+};
 const STARTING_INVENTORY = { red: 5, blue: 3, black: 1 };
+const INVENTORY_TYPES = [...Object.keys(STARTING_INVENTORY), "white"];
 const cleanName = (value) => String(value ?? "").trim().replace(/[<>]/g, "").slice(0, 16);
 const accountKeyFor = (token) => crypto.createHash("sha256").update(String(token)).digest("hex");
 const publicAccount = (account) => account ? ({
@@ -64,9 +69,23 @@ async function broadcastRoster() {
 async function releasePeer(socket, reason) {
   const { peerId } = socket;
   if (!peerId) return;
+  // 関係を先に解消し、連続する退出通知による二重返金を防ぐ。
+  socket.peerId = null;
   const peerSocket = sockets.get(peerId);
   if (peerSocket && peerSocket.peerId === socket.playerId) {
     peerSocket.peerId = null;
+    const departing = await store.findAccountById(socket.playerId);
+    const remaining = await store.findAccountById(peerId);
+    if (departing) await store.updateAccount(socket.playerId, { pendingBet: null });
+    if (remaining?.pendingBet) {
+      const inventory = { ...remaining.inventory };
+      for (const type of INVENTORY_TYPES) inventory[type] = (inventory[type] ?? 0) + (remaining.pendingBet.chips[type] ?? 0);
+      const account = await store.updateAccount(peerId, {
+        chips: remaining.chips + remaining.pendingBet.amount, inventory, pendingBet: null,
+      });
+      await store.updatePlayerProfile(peerId, publicAccount(account));
+      send(peerSocket, { type: "account", account: publicAccount(account) });
+    }
     await store.setStatus(peerId, "idle", null);
     send(peerSocket, { type: reason, from: socket.playerId });
   }
@@ -89,7 +108,7 @@ wss.on("connection", (socket) => {
   socket.peerId = null;
   socket.on("pong", () => { socket.isAlive = true; });
 
-  socket.on("message", async (raw) => {
+  socket.on("message", (raw) => enqueue(async () => {
     let message;
     try { message = JSON.parse(raw); } catch { return; }
     if (!message || typeof message.type !== "string") return;
@@ -106,7 +125,11 @@ wss.on("connection", (socket) => {
         account = await store.createAccount(socket.accountKey, nickname);
       }
       const previous = sockets.get(account.playerId);
-      if (previous && previous !== socket) previous.terminate();
+      if (previous && previous !== socket) {
+        await releasePeer(previous, "left");
+        previous.terminate();
+        account = await store.findAccount(socket.accountKey);
+      }
       socket.playerId = account.playerId;
       sockets.set(socket.playerId, socket);
       await store.addPlayer({
@@ -137,10 +160,14 @@ wss.on("connection", (socket) => {
     if (message.type === "profile") {
       const normalize = (profile) => ({
         chips: Number.isFinite(Number(profile?.chips)) ? Math.round(Number(profile.chips)) : 3000,
-        inventory: Object.fromEntries(Object.keys(STARTING_INVENTORY).map((type) => [type, Math.max(0, Math.min(999, Math.round(Number(profile?.inventory?.[type]) || 0)))])),
+        inventory: Object.fromEntries(INVENTORY_TYPES.map((type) => [type, Math.max(0, Math.min(999, Math.round(Number(profile?.inventory?.[type]) || 0)))])),
         debt: Math.max(0, Math.round(Number(profile?.debt) || 0)),
+        pendingBet: profile?.activeBet ? {
+          amount: Math.max(0, Math.round(Number(profile?.bet?.amount) || 0)),
+          chips: Object.fromEntries(INVENTORY_TYPES.map((type) => [type, Math.max(0, Math.round(Number(profile?.bet?.chips?.[type]) || 0))])),
+        } : null,
         bet: {
-          chips: Object.fromEntries(Object.keys(STARTING_INVENTORY).map((type) => [type, Math.max(0, Math.round(Number(profile?.bet?.chips?.[type]) || 0))])),
+          chips: Object.fromEntries(INVENTORY_TYPES.map((type) => [type, Math.max(0, Math.round(Number(profile?.bet?.chips?.[type]) || 0))])),
           amount: Math.max(0, Math.round(Number(profile?.bet?.amount) || 0)),
           multiplier: Math.max(1, Math.round(Number(profile?.bet?.multiplier) || 1)),
         },
@@ -207,6 +234,7 @@ wss.on("connection", (socket) => {
         debt: Math.max(0, Math.round(Number(message.payload?.debts?.[actor]) || 0)),
         inventory: message.payload?.inventories?.[actor] ?? { ...STARTING_INVENTORY },
         bet: message.payload?.bets?.[actor] ?? { amount: 100, multiplier: 1 },
+        pendingBet: null,
       });
       await store.updateAccount(socket.playerId, resultProfile("player"));
       if (socket.peerId) await store.updateAccount(socket.peerId, resultProfile("dealer"));
@@ -222,16 +250,16 @@ wss.on("connection", (socket) => {
     }
 
     if (message.type === "roster") await broadcastRoster();
-  });
+  }));
 
-  socket.on("close", async () => {
+  socket.on("close", () => enqueue(async () => {
     if (!socket.playerId) return;
-    await releasePeer(socket, "left");
     if (sockets.get(socket.playerId) !== socket) return;
+    await releasePeer(socket, "left");
     sockets.delete(socket.playerId);
     await store.removePlayer(socket.playerId);
     await broadcastRoster();
-  });
+  }));
 });
 
 const heartbeat = setInterval(() => {

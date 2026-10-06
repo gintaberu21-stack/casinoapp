@@ -79,9 +79,10 @@ assert.notEqual(hostId, guestId);
 assert.equal(hostWelcome.account.name, "HOST TEST");
 host.send({ type: "rename", name: "ACE" });
 assert.equal((await host.next("account")).account.name, "ACE");
-host.send({ type: "profile", own: { chips: 600, inventory: { red: 1, blue: 1, black: 0 }, debt: 100, bet: { chips: { red: 1 }, amount: 100, multiplier: 1 } } });
+host.send({ type: "profile", own: { chips: 630, inventory: { red: 1, blue: 1, black: 0, white: 30 }, debt: 100, bet: { chips: { red: 1 }, amount: 100, multiplier: 1 } } });
 const savedAccount = (await host.next("account")).account;
-assert.equal(savedAccount.chips, 600);
+assert.equal(savedAccount.chips, 630);
+assert.equal(savedAccount.inventory.white, 30);
 assert.equal(savedAccount.debt, 100);
 
 host.send({ type: "invite", to: guestId });
@@ -101,12 +102,13 @@ host.send({ type: "action", to: guestId, payload: { type: "rematch" } });
 assert.deepEqual((await guest.next("action")).payload, { type: "rematch" });
 host.send({
   type: "profile",
-  own: { chips: 600, inventory: { red: 1, blue: 1, black: 0 }, debt: 100 },
+  own: { chips: 630, inventory: { red: 1, blue: 1, black: 0, white: 30 }, debt: 100 },
   peer: { chips: 500, inventory: { red: 0, blue: 1, black: 0 }, debt: 0 },
 });
 assert.equal((await guest.next("account")).account.debt, 0);
 
 const game = new CasinoDuelGame();
+game.difficulty = "normal";
 game.startMatch();
 assert.deepEqual(game.inventories.player, { red: 5, blue: 3, black: 1 });
 assert.equal(game.chips.player, 3000);
@@ -136,6 +138,7 @@ assert.equal(revealGame.revealedSkills.player, true);
 assert.equal(revealed.revealedSkills[0].id, "lock");
 
 const debtGame = new CasinoDuelGame();
+debtGame.difficulty = "normal";
 debtGame.startMatch();
 debtGame.startRound("player");
 debtGame.setBet("player", { chips: { red: 5, blue: 3, black: 1 } });
@@ -148,7 +151,7 @@ assert.equal(debtGame.chips.player, 0);
 debtGame.takeLoan("player");
 assert.deepEqual({ chips: debtGame.chips.player, debt: debtGame.debts.player }, { chips: 500, debt: 500 });
 debtGame.phase = "playing";
-debtGame.setBet("player", { chips: { blue: 1 } });
+debtGame.setBet("player", { chips: { red: 5 } });
 debtGame.player = [{ rank: "K" }, { rank: "Q" }];
 debtGame.dealer = [{ rank: "9" }, { rank: "8" }];
 const repayment = debtGame.settle();
@@ -164,8 +167,44 @@ returning.send({ type: "join", token: hostToken });
 const returnedWelcome = await returning.next("welcome");
 assert.equal(returnedWelcome.id, hostId);
 assert.equal(returnedWelcome.account.name, "ACE");
-assert.equal(returnedWelcome.account.chips, 600);
+assert.equal(returnedWelcome.account.chips, 630);
+assert.equal(returnedWelcome.account.inventory.white, 30);
 assert.equal(returnedWelcome.account.debt, 100);
 returning.close();
 guest.close();
+
+for (const departingSeat of ["host", "guest"]) {
+  for (const settled of [false, true]) {
+    const a = new Client();
+    const b = new Client();
+    await a.open(); await b.open();
+    const tokenA = `disconnect-${departingSeat}-${settled}-host-token`;
+    const tokenB = `disconnect-${departingSeat}-${settled}-guest-token`;
+    a.send({ type: "join", token: tokenA, nickname: "A" });
+    b.send({ type: "join", token: tokenB, nickname: "B" });
+    const wa = await a.next("welcome");
+    const wb = await b.next("welcome");
+    a.send({ type: "invite", to: wb.id }); await b.next("invited");
+    b.send({ type: "accept", to: wa.id }); await a.next("accepted");
+    const profile = { chips: 2500, inventory: { red: 5, blue: 2, black: 1 }, debt: 100,
+      bet: { chips: { blue: 1 }, amount: 500, multiplier: 6 }, activeBet: !settled };
+    a.send({ type: "profile", own: profile, peer: profile });
+    await a.next("account"); await b.next("account");
+    const departed = departingSeat === "host" ? a : b;
+    const survivor = departingSeat === "host" ? b : a;
+    departed.close();
+    if (!settled) {
+      const refund = (await survivor.next("account")).account;
+      assert.equal(refund.chips, 3000);
+      assert.equal(refund.inventory.blue, 3);
+      assert.equal(refund.debt, 100);
+    }
+    await survivor.next("left");
+    const reconnect = new Client(); await reconnect.open();
+    reconnect.send({ type: "join", token: departingSeat === "host" ? tokenA : tokenB });
+    assert.equal((await reconnect.next("welcome")).account.chips, 2500);
+    survivor.send({ type: "leave" });
+    survivor.close(); reconnect.close();
+  }
+}
 console.log("integration: persistent account, physical chip betting, pairing, and debt repayment passed");

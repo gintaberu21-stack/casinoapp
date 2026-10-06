@@ -6,7 +6,8 @@
     <meta name="theme-color" content="#160406" />
     <meta name="description" content="文化祭で遊べる、必殺技カード搭載のブラックジャック対戦ゲーム。" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23160406'/%3E%3Cpath d='M32 8 52 32 32 56 12 32Z' fill='%23d8a937' stroke='%23fff0aa' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%237b101e'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles.css?v=layout-11" />
+    <link rel="stylesheet" href="./styles.css?v=layout-12" />
+    <link rel="stylesheet" href="./responsive.css?v=layout-12" />
     <title>CASINO DUEL</title>
   </head>
   <body>
@@ -24,11 +25,10 @@
               <button class="choice-card" data-mode="duo" type="button" aria-pressed="false"><span class="choice-number">02</span><span class="choice-mark">♦</span><strong>ふたりで対決</strong><small>友だちがディーラー</small></button>
             </div>
           </fieldset>
-          <button class="difficulty-preview" id="difficulty-open" type="button"><span>DEALER</span><strong id="difficulty-label">NORMAL</strong><em>変更</em></button>
+          <button class="difficulty-preview" id="difficulty-open" type="button"><span>DEALER</span><strong id="difficulty-label">NORMAL ×2</strong><em>変更</em></button>
           <button class="start-button" id="game-start" type="button"><span>GAME START</span><small>テーブルへ</small></button>
-          <nav class="help-nav" aria-label="遊び方"><button type="button" data-dialog="card-help">カードの説明</button><button type="button" data-dialog="special-help">必殺技カード</button></nav>
-          <p class="quick-rule">赤100×5・青500×3・黒1000×1で開始。全3ゲーム、選んだチップを賭けて勝つと2倍で戻ります。</p>
-        </div>
+          <nav class="help-nav" aria-label="遊び方"><button type="button" data-dialog="game-help">ゲームの説明</button><button type="button" data-dialog="card-help">カードの説明</button><button type="button" data-dialog="special-help">必殺技カード</button></nav>
+
       </section>
 
       <section class="screen match-screen" id="match-screen" aria-label="対戦相手をさがす" aria-hidden="true">
@@ -73,11 +73,24 @@
       <section class="screen game-screen" id="game-screen" aria-label="ブラックジャックテーブル" aria-hidden="true">
         <header class="table-header">
           <button class="icon-button" id="back-lobby" type="button" aria-label="メイン画面に戻る">‹</button>
-          <div class="mini-logo game-logo"><span class="game-brand"><b>CASINO</b><i>DUEL</i></span><small class="nav-win-payout" id="player-win-payout">勝利時 0</small></div>
+          <div class="mini-logo game-logo">
+            <div class="game-title">
+              <span class="game-brand"><b>CASINO</b><i>DUEL</i></span>
+            </div>
+            <small class="nav-win-payout" id="player-win-payout">勝利時 0</small>
+          </div>
             <div class="chip-counter rival-chips"><div class="mini-chip-rack" id="dealer-chip-stack"></div><div><small id="rival-chip-label">DEALER</small><strong id="dealer-chip-count">3000</strong><em class="debt-count" id="dealer-debt-count" hidden>借金 0</em></div></div>
         </header>
         <div class="table-felt" id="table-felt">
-          <div class="table-arc" aria-hidden="true"><span>CASINO DUEL</span><small>WIN RETURNS DOUBLE CHIPS</small></div>
+          <div class="game-help-anchor">
+            <button class="game-help-toggle" id="game-help-toggle" type="button" aria-label="説明メニュー" aria-expanded="false" aria-controls="game-help-menu"><span></span><span></span><span></span></button>
+            <nav class="game-help-menu" id="game-help-menu" aria-label="ゲーム中の説明" hidden>
+              <button type="button" data-dialog="game-help">ゲームの説明</button>
+              <button type="button" data-dialog="card-help">カードの説明</button>
+              <button type="button" data-dialog="special-help">必殺技カードの説明</button>
+            </nav>
+          </div>
+          <div class="table-arc" aria-hidden="true"><span>CASINO DUEL</span><small>WIN PAYOUT BY LEVEL</small></div>
           <section class="hand-zone dealer-zone" aria-label="ディーラーの手札">
             <div class="hand-heading"><div><span class="role-kicker" id="dealer-kicker">THE HOUSE</span><h2 id="dealer-hand-name">DEALER</h2></div><output class="score-badge is-hidden" id="dealer-score">?</output></div>
             <div class="card-hand" id="dealer-hand"></div>
@@ -94,10 +107,10 @@
       </section>
     </main>
 
-    <dialog class="info-dialog" id="difficulty-dialog"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">SELECT DEALER</p><h2>ディーラーの強さ</h2><div class="difficulty-list"><button type="button" data-difficulty="easy"><span>EASY</span><small>15以上で止まる、初めての人向け</small></button><button class="is-selected" type="button" data-difficulty="normal"><span>NORMAL</span><small>基本ルール通り17以上で止まる</small></button><button type="button" data-difficulty="hard"><span>HARD</span><small>あなたの点数を見て強気に追いかける</small></button></div></div></dialog>
+    <dialog class="info-dialog" id="difficulty-dialog"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">SELECT DEALER</p><h2>ディーラーの強さ</h2><div class="difficulty-list"><button type="button" data-difficulty="easy"><span>EASY</span><small>勝利時：賭けチップの1.3倍</small></button><button class="is-selected" type="button" data-difficulty="normal"><span>NORMAL</span><small>勝利時：賭けチップの2倍</small></button><button type="button" data-difficulty="hard"><span>HARD</span><small>勝利時：賭けチップの3倍</small></button></div></div></dialog>
     <dialog class="info-dialog" id="duo-mode-dialog"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">SELECT PLAY STYLE</p><h2>ふたりで対決</h2><div class="difficulty-list duo-mode-list"><button id="duo-device" type="button"><span>この端末でプレイ</span><small>1台を交代で持ちながら、ふたりで遊びます</small></button><button id="duo-local" type="button"><span>ローカル対戦</span><small>スマホ・PCなど別々の端末をIDで接続します</small></button></div></div></dialog>
-    <dialog class="info-dialog" id="card-help"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">HOW TO PLAY</p><h2>カードの数え方</h2><div class="rule-grid"><div><b class="rank-sample red">A</b><p><strong>1 または 11</strong><span>21を超えない有利な方で数えます。</span></p></div><div><b class="rank-sample">2–10</b><p><strong>数字のまま</strong><span>書かれている数字が得点です。</span></p></div><div><b class="rank-sample red">JQK</b><p><strong>すべて 10</strong><span>絵札はどれも10点です。</span></p></div></div><p class="dialog-note">21を超えるとBUSTで負け。HITで引く、STANDで勝負します。</p></div></dialog>
-    <dialog class="info-dialog" id="special-help"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">SECRET WEAPONS</p><h2>必殺技カード</h2><div class="skill-guide" id="skill-guide"></div><p class="dialog-note">8枚の山から重複なしで3枚ずつ配ります。出やすさはAランク20%・Bランク40%・Cランク40%。3ゲーム中は同じ手札を引き継ぎ、使ったカードは復活しません。必殺技はターンを消費しないので、使ったあとに続けてHITやSTANDを選べます。</p></div></dialog>
+    <dialog class="info-dialog" id="card-help"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">HOW TO PLAY</p><h2>カードの数え方</h2><div class="rule-grid"><div><b class="rank-sample red">A</b><p><strong>1 または 11</strong><span>21を超えない有利な方で数えます。</span></p></div><div><b class="rank-sample">2–10</b><p><strong>数字のまま</strong><span>書かれている数字が得点です。</span></p></div><div><b class="rank-sample red">JQK</b><p><strong>すべて 10</strong><span>絵札はどれも10点です。</span></p></div></div><p class="dialog-note">21を超えるとBUSTで負け。HITで引く、STANDで勝負します。STAND後も相手の必殺技は受けますが、手札を変更されて合計が21未満になったら、次の自分のターンで再び行動できます。</p></div></dialog>
+    <dialog class="info-dialog" id="special-help"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">SECRET WEAPONS</p><h2>必殺技カード</h2><div class="skill-guide" id="skill-guide"></div><p class="dialog-note">8枚の山から重複なしで3枚ずつ配ります。出やすさはAランク10%・Bランク45%・Cランク45%。3ゲーム中は同じ手札を引き継ぎ、使ったカードは復活しません。必殺技はターンを消費しないので、使ったあとに続けてHITやSTANDを選べます。</p></div></dialog>
     <dialog class="info-dialog account-dialog" id="profile-dialog"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">MY ACCOUNT</p><h2>アカウント設定</h2><div class="account-id-card"><span>PLAYER ID</span><strong id="profile-id">—</strong><small>この端末で固定されます</small></div><label class="nickname-field"><span>ニックネーム</span><input id="profile-name-input" type="text" maxlength="16" autocomplete="nickname" /></label><button class="start-button" id="profile-save" type="button"><span>名前を変更</span><small>戦績やIDはそのまま</small></button></div></dialog>
     <dialog class="info-dialog account-dialog" id="stats-dialog"><div class="dialog-panel"><button class="dialog-close" type="button" aria-label="閉じる">×</button><p class="dialog-kicker">BATTLE RECORD</p><h2 id="stats-name">戦績</h2><div class="stats-summary"><div><small>対戦数</small><strong id="stats-matches">0</strong></div><div><small>勝ち</small><strong id="stats-wins">0</strong></div><div><small>負け</small><strong id="stats-losses">0</strong></div><div><small>引分</small><strong id="stats-draws">0</strong></div></div><div class="account-wallet"><span><small>所持チップ</small><strong id="stats-chips">3000</strong></span><span><small>借金</small><strong id="stats-debt">0</strong></span></div></div></dialog>
 
@@ -114,5 +127,20 @@
     <div class="room-overlay" id="room-overlay" hidden><div class="room-panel"><p>MATCH ROOM</p><h2 id="room-title">対戦部屋</h2><div class="room-seats"><div class="room-seat"><span>♠</span><strong id="room-host">PLAYER 1</strong><small>HOST</small></div><div class="room-vs">VS</div><div class="room-seat"><span>♦</span><strong id="room-guest">PLAYER 2</strong><small>GUEST</small></div></div><button class="start-button" id="room-start" type="button"><span>GAME START</span><small id="room-start-note">対戦開始</small></button><button class="room-leave" id="room-leave" type="button">部屋を出る</button></div></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
       <script type="module" src="./js/app.js?v=layout-11"></script>
+    <dialog class="info-dialog" id="game-help">
+      <div class="dialog-panel">
+        <button class="dialog-close" type="button" aria-label="閉じる">×</button>
+        <p class="dialog-kicker">HOW TO PLAY</p><h2>ゲームの説明</h2>
+        <div class="game-guide" aria-roledescription="カルーセル" aria-label="ゲームの遊び方" tabindex="0">
+          <article class="guide-slide"><span class="guide-number">01</span><h3>21に近づけよう！</h3><p>相手より高く、21を超えない点数を目指します。21を超えるとBUSTで負け。同じ点数なら引き分けです。</p><p>1試合は3ゲーム。最後は「持ちチップ − 借金」が多い方の勝ちです。</p></article>
+          <article class="guide-slide" hidden><span class="guide-number">02</span><h3>チップを賭ける</h3><p>赤１００・青５００・黒1000のチップを選んでベットします。開始時の手持ちは合計3000チップです。</p><p>勝利時の受取総額はEASYが1.3倍、NORMALが2倍、HARDが3倍。対人戦は2倍です。引き分けは賭けた分が戻り、負けると戻りません。</p></article>
+          <article class="guide-slide" hidden><span class="guide-number">03</span><h3>HITとSTAND</h3><p>ターン制でHITでカードを1枚引き、STANDで確定。</p><p>STAND後も攻撃を受けます。相手の必殺技で手札が変更されたら、次の自分のターンで再び行動できます。</p></article>
+          <article class="guide-slide" hidden><span class="guide-number">04</span><h3>必殺技で逆転</h3><p>必殺技は3枚ずつ配布。使ってもターンを消費しないので、続けてHITやSTANDを選べます。使ったカードは3ゲーム中に復活しません。</p><p>各カードの効果は「必殺技カード」で確認できます。</p></article>
+          <article class="guide-slide" hidden><span class="guide-number">05</span><h3>借金して続行</h3><p>チップが0になったら、500チップを借りて続行できます。赤100チップ5枚が配られ、借金が500増えます。</p><p>各ゲームの後、手持ち100チップを残して超えた分を返済します。</p></article>
+        </div>
+        <div class="guide-controls"><button type="button" id="guide-prev" aria-label="前の説明">←</button><span id="guide-position" aria-live="polite">1 / 5</span><button type="button" id="guide-next" aria-label="次の説明">→</button></div>
+        <p class="guide-hint">左右にスワイプしても切り替えられます</p>
+      </div>
+    </dialog>
   </body>
 </html>

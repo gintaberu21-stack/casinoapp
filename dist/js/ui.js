@@ -184,7 +184,7 @@ export class GameUI {
     const rival = game.bets?.dealer ?? own;
     this.renderChipCollection(this.els["player-bet-stack"], own.chips);
     this.renderChipCollection(this.els["dealer-bet-stack"], rival.chips);
-    this.els["player-win-payout"].textContent = `勝利時 ${Math.max(0, (own.amount ?? 0) * ((own.multiplier ?? 1) + 1))}`;
+    this.els["player-win-payout"].textContent = `勝利時 ${game.winPayoutFor("player")}`;
   }
 
   async animateChipPayout(result) {
@@ -263,27 +263,19 @@ export class GameUI {
     const cards = game.skills[displayActor].map((special) => this.createSpecialCard(special, !canUse));
     this.els["special-list"].replaceChildren(...cards);
     this.els["special-owner"].textContent = game.mode === "duo" ? `★ ${displayActor === "player" ? "PLAYER 1" : "PLAYER 2"} ARCADE` : "★ YOUR ARCADE";
-    const opponent = opponentOf(displayActor);
-    const opponentCards = game.revealedSkills?.[displayActor]
-      ? game.skills[opponent].map((special) => {
-        const card = this.createSpecialCard(special, true);
-        card.classList.add("is-revealed-opponent");
-        return card;
-      })
-      : game.skills[opponent].map(() => {
-        const back = document.createElement("i");
-        back.title = "相手の必殺技カード";
-        return back;
-      });
-    this.els["opponent-arcana"].classList.toggle("is-revealed", Boolean(game.revealedSkills?.[displayActor]));
-    this.els["opponent-arcana"].replaceChildren(...opponentCards);
+    // ARCANA EYE shows the opponent's cards once in its reveal overlay.
+    this.els["opponent-arcana"].classList.remove("is-revealed");
+    this.els["opponent-arcana"].replaceChildren();
     if (dealing) this.els["special-list"].querySelectorAll(".special-card").forEach((card) => card.disabled = true);
     this.showReservedCard(game, displayActor);
   }
 
   showReservedCard(game, actor) {
     const card = game.reservedCard[actor];
-    if (!card || game.actor !== actor) { this.els["next-card-preview"].hidden = true; return; }
+    if (!card || game.actor !== actor || game.stood[actor] || game.phase !== "playing") {
+      this.els["next-card-preview"].hidden = true;
+      return;
+    }
     const preview = this.createCard(card);
     preview.classList.add("preview-card");
     this.els["next-card-preview"].replaceChildren(preview);
@@ -310,6 +302,11 @@ export class GameUI {
     this.els["special-focus-description"].textContent = special.description;
     this.els["special-overlay"].classList.toggle("is-cpu-special", isAi);
     this.els["special-overlay"].hidden = false;
+    // Restart the entrance even when the same skill is shown twice in succession.
+    const focus = this.els["special-focus-title"].closest(".special-focus");
+    focus.style.animation = "none";
+    void focus.offsetWidth;
+    focus.style.animation = "";
     this.cue("special");
     await wait(isAi ? 2900 : 1900);
     this.els["special-overlay"].hidden = true;
@@ -416,13 +413,15 @@ export class GameUI {
     return this.chooseCards(cards, "相手から捨てるカードを選択");
   }
 
-  async showOpponentSpecialCards(skills, isAi = false) {
-    this.els["select-card-heading"].textContent = isAi ? "自分の必殺技カードが公開された" : "相手の必殺技カードを公開";
+  async showOpponentSpecialCards(skills, game, actor) {
+    const displayActor = game.mode === "duo" ? game.actor : "player";
+    const ownCardsRevealed = actor !== displayActor;
+    this.els["select-card-heading"].textContent = ownCardsRevealed ? "自分の必殺技カードが公開された" : "相手の必殺技カードを公開";
     const list = this.els["select-card-list"];
     list.classList.add("is-skill-reveal");
     list.replaceChildren(...skills.map((special) => this.createSpecialCard(special, true)));
     this.els["select-card-overlay"].hidden = false;
-    await wait(isAi ? 2200 : 2800);
+    await wait(ownCardsRevealed ? 2200 : 2800);
     this.els["select-card-overlay"].hidden = true;
     list.classList.remove("is-skill-reveal");
   }
@@ -533,6 +532,7 @@ export class GameUI {
     const labels = this.seatLabels(game);
     const opponent = opponentOf(actor);
     const selected = { red: 0, blue: 0, black: 0 };
+    if ((game.inventories[actor].white ?? 0) > 0) selected.white = 0;
     this.els["bet-round"].textContent = `GAME ${game.matchRound + 1} / ${MATCH_ROUNDS}`;
     this.els["bet-my-label"].textContent = labels[actor];
     this.els["bet-rival-label"].textContent = labels[opponent];
@@ -540,7 +540,7 @@ export class GameUI {
     this.els["bet-rival-chips"].textContent = game.chips[opponent];
     const list = this.els["bet-chip-picker"];
     const render = () => {
-      const groups = Object.entries(CHIP_TYPES).map(([type, chipType]) => {
+      const groups = Object.entries(CHIP_TYPES).filter(([type]) => type !== "white" || (game.inventories[actor].white ?? 0) > 0).map(([type, chipType]) => {
         const group = document.createElement("section");
         group.className = "chip-picker-group";
         const label = document.createElement("span");
@@ -566,7 +566,7 @@ export class GameUI {
       list.replaceChildren(...groups);
       const amount = inventoryValue(selected);
       this.els["bet-amount"].textContent = `${amount} CHIP`;
-      this.els["bet-total-note"].textContent = amount ? `勝利時は${amount * 2}分が戻ります` : "1枚以上選んでください";
+      this.els["bet-total-note"].textContent = amount ? `勝利時は${Math.round(amount * game.basePayoutMultiplier())}分が戻ります` : "1枚以上選んでください";
       this.els["bet-confirm"].disabled = amount <= 0;
       this.renderChipCollection(this.els["selected-chip-stack"], selected);
     };

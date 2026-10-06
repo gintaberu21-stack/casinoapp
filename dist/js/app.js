@@ -1,4 +1,4 @@
-import { CasinoDuelGame } from "./game.js";
+import { CasinoDuelGame, DIFFICULTY_PAYOUTS } from "./game.js";
 import { getSpecial } from "./skills.js";
 import { GameUI } from "./ui.js";
 import { scoreHand } from "./deck.js";
@@ -64,9 +64,11 @@ function profileFromGame(actor) {
   };
 }
 
-function persistProgress() {
+function persistProgress(activeBet = false) {
   if (onlineRole === "guest") return;
-  matchService.saveProgress(profileFromGame("player"), isOnlineHost() ? profileFromGame("dealer") : null);
+  const own = { ...profileFromGame("player"), activeBet };
+  const peer = isOnlineHost() ? { ...profileFromGame("dealer"), activeBet } : null;
+  matchService.saveProgress(own, peer);
   renderAccount();
 }
 
@@ -119,14 +121,14 @@ function setMode(mode) {
     button.setAttribute("aria-pressed", String(selected));
   });
   const duo = mode === "duo";
-  ui.els["difficulty-label"].textContent = duo ? "PLAYER 2" : selectedDifficulty.toUpperCase();
+  ui.els["difficulty-label"].textContent = duo ? "PLAYER 2" : `${selectedDifficulty.toUpperCase()} ×${DIFFICULTY_PAYOUTS[selectedDifficulty]}`;
   ui.els["difficulty-open"].disabled = duo;
   ui.els["difficulty-open"].querySelector("em").textContent = duo ? "手動" : "変更";
 }
 
 function setDifficulty(difficulty) {
   selectedDifficulty = difficulty;
-  ui.els["difficulty-label"].textContent = difficulty.toUpperCase();
+  ui.els["difficulty-label"].textContent = `${difficulty.toUpperCase()} ×${DIFFICULTY_PAYOUTS[difficulty]}`;
   document.querySelectorAll("[data-difficulty]").forEach((button) => button.classList.toggle("is-selected", button.dataset.difficulty === difficulty));
 }
 
@@ -176,6 +178,7 @@ async function beginRound() {
   ui.els["standing-overlay"].hidden = true;
   if (isOnlineHost()) {
     game.setBet("player", await ui.requestBet(game, "player"));
+    matchService.saveProgress({ ...profileFromGame("player"), activeBet: true });
     const guestBet = new Promise((resolve) => { pendingGuestBetResolve = resolve; });
     ui.els["round-status"].textContent = "PLAYER 2 BETTING";
     syncState("betRequest");
@@ -190,7 +193,7 @@ async function beginRound() {
     game.setBet("player", bet);
     game.setBet("dealer", bet);
   }
-  persistProgress();
+  persistProgress(true);
   const firstActor = await ui.runCoinToss(game.mode, {
     onDecision: isOnlineHost() ? ({ face, firstActor: hostFirst }) => {
       syncState("coinToss", null, { face, firstActor: opponentOf(hostFirst) });
@@ -289,6 +292,7 @@ async function performStand(isAi = false) {
   const actor = game.actor;
   busy = true;
   game.stood[actor] = true;
+  ui.showReservedCard(game, game.mode === "duo" ? actor : "player");
   syncState("stand", null, { actor: opponentOf(actor) });
   clearTurnLock(actor);
   ui.setActions(false, actor);
@@ -364,7 +368,7 @@ async function executeSpecial(id, isAi, supplied = null) {
   const result = game.applySpecial(actor, id, { cardId, actorCardId, opponentCardId });
   if (!result.ok) { ui.toast(result.reason); busy = false; await enterTurn(false); return; }
 
-  if (id === "shield") await ui.showOpponentSpecialCards(result.revealedSkills, isAi);
+  if (id === "shield") await ui.showOpponentSpecialCards(result.revealedSkills, game, actor);
 
   if (id === "extraDraw") {
     await ui.addCard(game, actor, result.added);
@@ -389,7 +393,7 @@ async function executeSpecial(id, isAi, supplied = null) {
     revealedSkills: structuredClone(result.revealedSkills),
   } : { id, actor: opponentOf(actor) });
   const messages = {
-    double: `勝利時の獲得分が2倍の${result.wager}チップに!`, triple: `勝利時の獲得分が3倍の${result.wager}チップに!`,
+    double: `勝利時の受け取りが${result.wager}チップに!（倍率は重ね掛け可能）`, triple: `勝利時の受け取りが${result.wager}チップに!（倍率は重ね掛け可能）`,
     shield: "相手の必殺技カードを公開!", peek: "次に自分が引くカードを確保!",
     selectReverse: "選んだカードを捨てた!", shuffle: "選んだカードを1枚ずつ交換!",
     extraDraw: "1枚引いて、選んだ手札を捨てた!", lock: "相手の次ターンの必殺技を封印!",
@@ -580,7 +584,6 @@ async function handleRemoteAction(action) {
     await ui.animateChipChange(game, pending.chipsBefore);
     ui.renderSpecials(game);
     ui.toast("1枚引いて、選んだ手札を捨てた!");
-    clearTurnLock(pending.actor);
     game.refreshAutoStand();
     if (game.isRoundOver()) { await wait(350); await finishRound(); return; }
     await enterTurn(false);
@@ -623,7 +626,7 @@ async function receiveHostState(payload) {
     return;
   }
   if (payload.event === "specialResult" && payload.action?.id === "shield" && payload.action.revealedSkills) {
-    await ui.showOpponentSpecialCards(payload.action.revealedSkills, payload.action.actor !== "player");
+    await ui.showOpponentSpecialCards(payload.action.revealedSkills, game, payload.action.actor);
   }
   if (payload.event === "coinToss") {
     busy = true;
@@ -681,11 +684,67 @@ async function receiveHostState(payload) {
 }
 
 function bindDialogs() {
+  const helpToggle = document.getElementById("game-help-toggle");
+  const helpMenu = document.getElementById("game-help-menu");
+  const closeHelpMenu = () => {
+    helpMenu.hidden = true;
+    helpToggle.setAttribute("aria-expanded", "false");
+  };
+  helpToggle.addEventListener("click", () => {
+    helpMenu.hidden = !helpMenu.hidden;
+    helpToggle.setAttribute("aria-expanded", String(!helpMenu.hidden));
+  });
+  helpMenu.addEventListener("click", (event) => {
+    if (event.target.closest("[data-dialog]")) closeHelpMenu();
+  });
+  document.addEventListener("click", (event) => {
+    if (!helpToggle.contains(event.target) && !helpMenu.contains(event.target)) closeHelpMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !helpMenu.hidden) {
+      closeHelpMenu();
+      helpToggle.focus();
+    }
+  });
+  const guide = document.querySelector(".game-guide");
+  const slides = [...guide.querySelectorAll(".guide-slide")];
+  let guideIndex = 0;
+  const showGuide = (index) => {
+    guideIndex = (index + slides.length) % slides.length;
+    slides.forEach((slide, position) => { slide.hidden = position !== guideIndex; });
+    document.getElementById("guide-position").textContent = `${guideIndex + 1} / ${slides.length}`;
+  };
+  document.getElementById("guide-prev").addEventListener("click", () => showGuide(guideIndex - 1));
+  document.getElementById("guide-next").addEventListener("click", () => showGuide(guideIndex + 1));
+  document.getElementById("game-help").addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    showGuide(guideIndex + (event.key === "ArrowRight" ? 1 : -1));
+  });
+  let touchStart;
+  guide.addEventListener("touchstart", (event) => {
+    touchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }, { passive: true });
+  guide.addEventListener("touchend", (event) => {
+    if (!touchStart) return;
+    const dx = event.changedTouches[0].clientX - touchStart.x;
+    const dy = event.changedTouches[0].clientY - touchStart.y;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) showGuide(guideIndex + (dx < 0 ? 1 : -1));
+    touchStart = null;
+  }, { passive: true });
+  guide.addEventListener("touchcancel", () => { touchStart = null; }, { passive: true });
   document.querySelectorAll("[data-dialog]").forEach((button) => button.addEventListener("click", () => document.getElementById(button.dataset.dialog).showModal()));
   ui.els["difficulty-open"].addEventListener("click", () => ui.els["difficulty-dialog"].showModal());
   document.querySelectorAll(".dialog-close").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
   document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); }));
-  document.querySelectorAll("[data-difficulty]").forEach((button) => button.addEventListener("click", () => { setDifficulty(button.dataset.difficulty); ui.els["difficulty-dialog"].close(); }));
+  let difficultyCloseTimer;
+  const difficultyDialog = ui.els["difficulty-dialog"];
+  difficultyDialog.addEventListener("close", () => clearTimeout(difficultyCloseTimer));
+  document.querySelectorAll("[data-difficulty]").forEach((button) => button.addEventListener("click", () => {
+    setDifficulty(button.dataset.difficulty);
+    clearTimeout(difficultyCloseTimer);
+    difficultyCloseTimer = setTimeout(() => difficultyDialog.close(), 450);
+  }));
 }
 
 // ボタンはすべてカチッと鳴らす。別の音にしたいものは data-cue で指定する。
@@ -723,6 +782,7 @@ ui.els["stand-button"].addEventListener("click", () => {
   if (onlineRole === "guest") {
     busy = true;
     ui.setActions(false, "player");
+    ui.els["next-card-preview"].hidden = true;
     matchService.sendAction({ type: "stand" });
     return;
   }
