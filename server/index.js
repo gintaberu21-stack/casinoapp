@@ -28,6 +28,8 @@ app.use(express.urlencoded({ extended: false }));
 app.get("/access", access.showPage);
 app.post("/access", access.submit);
 app.use(access.middleware);
+// 公開URLの入口はゲーム一覧。ブラックジャックのホームは /index.html に残す。
+app.get("/", (_request, response) => response.sendFile(path.join(staticDir, "rooms.html")));
 // 対戦ロジック更新後に古いJSが端末へ残ると同期版と混在するため、常に再検証する。
 app.use(express.static(staticDir, { maxAge: 0, etag: true }));
 app.get("/api/matches", async (_request, response) => {
