@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ルーレット · スマホプレビュー</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;padding:16px 12px;background:#202322;color:#e7e7df;font:12px Arial,sans-serif}header{margin:0 auto 12px;max-width:393px;display:flex;justify-content:space-between;gap:12px}.preview{width:min(100%,393px);margin:auto;position:relative;overflow:hidden;border-radius:16px;box-shadow:0 0 0 1px #555,0 8px 24px #0005;background:#090e0c}iframe{display:block;width:393px;height:852px;border:0;transform-origin:top left}
+  </style>
+</head>
+<body>
+  <header><strong>スマホプレビュー</strong><span>393 × 852</span></header>
+  <div class="preview"><iframe src="./roulette.html" title="393px幅のルーレット"></iframe></div>
+  <script>
+    const preview=document.querySelector('.preview');
+    const frame=document.querySelector('iframe');
+    new ResizeObserver(()=>{const scale=preview.clientWidth/393;frame.style.transform=`scale(${scale})`;preview.style.height=`${852*scale}px`;}).observe(preview);
+  </script>
+</body>
+</html>
