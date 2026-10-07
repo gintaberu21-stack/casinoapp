@@ -13,3 +13,4 @@
 dialog{width:min(90%,440px);padding:32px;border:1px solid #8c744b;border-radius:8px;background:#23191c;color:#eee5d2}
 dialog::backdrop{background:#000a}dialog h2{font-size:24px}dialog p{font:15px/1.8 Arial,sans-serif}
 .dialog-close{position:absolute;right:8px;top:8px;width:40px;height:40px;border:0;background:none;color:#eee5d2;font-size:26px;cursor:pointer}
+.roulette-entry{left:50%;top:56.4%;width:44.6%;height:5.1%;display:flex;align-items:center;justify-content:center;gap:7%;border:1px solid #b59454;border-radius:clamp(5px,1.1vw,10px);background:linear-gradient(100deg,#47151b,#691e26);color:#fff7ed;text-decoration:none;font:600 clamp(14px,4.2vw,36px) Georgia,"Yu Mincho",serif;box-shadow:inset 0 0 0 1px #ffffff12}.roulette-entry:hover{filter:brightness(1.12)}.roulette-entry:active{filter:brightness(1.2)}
