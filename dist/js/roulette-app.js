@@ -1,6 +1,6 @@
 import { INITIAL_POINTS, settleBets, betDefinition, numberColor, INSIDE_BETS, ROLL_DURATION, ballRollTarget, ballRollFrame } from './roulette.js';
 import { createRouletteWheel } from './roulette-wheel.js';
-import { ROULETTE_HELP } from './roulette-help.js';
+import { ROULETTE_HELP } from './roulette-help.js?v=help-cleanup-5';
 import { CHIP_TYPES } from './game.js';
 const $ = id => document.getElementById(id);
 const rouletteChipTypes = ['red', 'blue', 'black'];
