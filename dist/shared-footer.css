@@ -1,0 +1,133 @@
+:root {
+  --footer-height: 72px;
+}
+body {
+  padding-bottom: calc(var(--footer-height) + env(safe-area-inset-bottom)) !important;
+}
+.shared-footer {
+  position: fixed;
+  z-index: 100;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: calc(var(--footer-height) + env(safe-area-inset-bottom));
+  padding: 0 max(8px, calc((100vw - 864px) / 2)) env(safe-area-inset-bottom);
+  background: linear-gradient(#17100e, #080606);
+  border-top: 1px solid #92703b;
+  box-shadow: 0 -5px 20px #0006;
+  color: #f4e6c8;
+}
+.shared-footer a,
+.shared-footer button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin: 8px 0;
+  padding: 0 6px;
+  border: 0;
+  border-right: 1px solid #866738;
+  background: none;
+  color: inherit;
+  text-decoration: none;
+  font:
+    14px/1.2 system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+.shared-footer > :last-child {
+  border-right: 0;
+}
+.shared-footer svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: #e3b568;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.shared-footer [aria-current] {
+  color: #ffd989;
+}
+.shared-footer :focus-visible {
+  outline: 2px solid #ffe4a1;
+  outline-offset: -2px;
+}
+.shared-footer-dialog {
+  width: min(90%, 440px);
+  max-height: 75svh;
+  overflow: auto;
+  padding: 26px;
+  border: 1px solid #bd9451;
+  border-radius: 14px;
+  background: #231016;
+  color: #fff0d5;
+  font:
+    15px/1.8 system-ui,
+    sans-serif;
+}
+.shared-footer-dialog::backdrop {
+  background: #000b;
+}
+.shared-footer-dialog h2 {
+  font-size: 22px;
+  margin-top: 0;
+}
+.shared-footer-dialog button {
+  width: 100%;
+  padding: 10px;
+  background: #681b2c;
+  color: #fff0d5;
+  border: 1px solid #bd9451;
+  border-radius: 8px;
+  cursor: pointer;
+}
+body:has(.design-preview) .preview-lobby,
+body:has(.design-preview) .preview-record,
+body:has(.design-preview) .preview-help {
+  display: none;
+}
+body:has(.design-preview) .lobby-design {
+  clip-path: inset(0 0 7.8% 0);
+}
+.game-screen {
+  min-height: calc(100svh - var(--footer-height) - env(safe-area-inset-bottom)) !important;
+}
+.game-record-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.game-record-list li {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #92703b;
+  border-radius: 10px;
+  background: #10090c;
+}
+.game-record-list strong {
+  color: #f4d589;
+  font-size: 17px;
+}
+.game-record-list span {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.shared-footer-dialog small {
+  display: block;
+  color: #c3ad98;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.game-record-list .record-chip-gain {
+  color: #ffe08c;
+  font-weight: 700;
+  margin-top: 3px;
+}

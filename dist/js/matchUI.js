@@ -18,14 +18,20 @@ export class MatchScreen {
 
   bind() {
     this.els["search-submit"].addEventListener("click", () => this.runSearch());
-    this.els["search-input"].addEventListener("keydown", (event) => { if (event.key === "Enter") this.runSearch(); });
-    this.els["search-input"].addEventListener("input", () => { if (!this.els["search-input"].value) this.clearSearch(); });
+    this.els["search-input"].addEventListener("keydown", (event) => {
+      if (event.key === "Enter") this.runSearch();
+    });
+    this.els["search-input"].addEventListener("input", () => {
+      if (!this.els["search-input"].value) this.clearSearch();
+    });
     this.els["search-clear"].addEventListener("click", () => this.clearSearch());
-    [this.els["filter-open"], this.els["filter-all"]].forEach((button) => button.addEventListener("click", () => {
-      this.filter = button.dataset.filter;
-      this.renderFilters();
-      this.render();
-    }));
+    [this.els["filter-open"], this.els["filter-all"]].forEach((button) =>
+      button.addEventListener("click", () => {
+        this.filter = button.dataset.filter;
+        this.renderFilters();
+        this.render();
+      }),
+    );
     this.els["invite-accept"].addEventListener("click", () => {
       this.els["invite-overlay"].hidden = true;
       this.service.accept();
@@ -53,8 +59,15 @@ export class MatchScreen {
     this.service.addEventListener("roster", () => this.render());
     this.service.addEventListener("invited", (event) => this.showInvite(event.detail.peerId));
     this.service.addEventListener("paired", (event) => this.showRoom(event.detail));
-    this.service.addEventListener("declined", () => { this.ui.toast("申し込みが断られました"); this.render(); });
-    this.service.addEventListener("left", () => { this.closeOverlays(); this.ui.toast("相手が部屋を出ました"); this.render(); });
+    this.service.addEventListener("declined", () => {
+      this.ui.toast("申し込みが断られました");
+      this.render();
+    });
+    this.service.addEventListener("left", () => {
+      this.closeOverlays();
+      this.ui.toast("相手が部屋を出ました");
+      this.render();
+    });
     this.service.addEventListener("start", () => this.beginMatch());
   }
 
@@ -107,22 +120,35 @@ export class MatchScreen {
   players() {
     const found = this.query ? this.service.search(this.query) : this.service.roster();
     // 申し込み中の相手は「対戦できる」ではなくなるが、状況が見えるように残す。
-    return this.filter === "open" ? found.filter((player) => player.status === "idle" || player.id === this.service.peerId) : found;
+    return this.filter === "open"
+      ? found.filter((player) => player.status === "idle" || player.id === this.service.peerId)
+      : found;
   }
 
   render() {
     const players = this.players();
     // 定期更新のたびに作り直すと、押した瞬間にノードが消えてタップが効かなくなる。
-    const signature = JSON.stringify([this.filter, this.query, this.service.status, this.service.peerId, players.map(({ id, name, status, chips }) => `${id}:${name}:${status}:${chips}`)]);
+    const signature = JSON.stringify([
+      this.filter,
+      this.query,
+      this.service.status,
+      this.service.peerId,
+      players.map(({ id, name, status, chips }) => `${id}:${name}:${status}:${chips}`),
+    ]);
     if (signature !== this.signature) {
       this.signature = signature;
       this.els["player-list"].replaceChildren(...players.map((player) => this.createRow(player)));
     }
     const empty = this.els["list-empty"];
     empty.hidden = players.length > 0;
-    if (!this.service.connected) empty.textContent = "サーバーに接続しています…　つながらない場合は通信環境を確認してください。";
-    else if (this.query) empty.textContent = `ID ${this.query} のプレイヤーは見つかりませんでした。相手がメイン画面を開いているか確認してください。`;
-    else if (this.filter === "open") empty.textContent = "対戦できるプレイヤーがいません。相手にメイン画面を開いてもらい、IDを教えてもらってください。";
+    if (!this.service.connected)
+      empty.textContent =
+        "サーバーに接続しています…　つながらない場合は通信環境を確認してください。";
+    else if (this.query)
+      empty.textContent = `ID ${this.query} のプレイヤーは見つかりませんでした。相手がメイン画面を開いているか確認してください。`;
+    else if (this.filter === "open")
+      empty.textContent =
+        "対戦できるプレイヤーがいません。相手にメイン画面を開いてもらい、IDを教えてもらってください。";
     else empty.textContent = "ほかのプレイヤーを待っています…";
   }
 
@@ -134,11 +160,16 @@ export class MatchScreen {
     row.className = "player-row";
     row.dataset.id = player.id;
     row.disabled = busy || this.service.status !== "idle";
-    const state = waiting ? '<em class="is-busy">申し込み中</em>' : busy ? '<em class="is-busy">対戦中</em>' : '<em class="is-open">対戦できる</em>';
-    row.innerHTML = `<span class="player-badge">${suitOf(player.id)}</span>`
-      + `<span class="player-main"><strong>${player.name}</strong>`
-      + `<span class="player-meta">${state}<span>ID ${player.id}</span><span>全3ゲーム</span></span></span>`
-      + `<span class="player-stat"><small>CHIP</small><b>${player.chips ?? 3000}<i>C</i></b></span>`;
+    const state = waiting
+      ? '<em class="is-busy">申し込み中</em>'
+      : busy
+        ? '<em class="is-busy">対戦中</em>'
+        : '<em class="is-open">対戦できる</em>';
+    row.innerHTML =
+      `<span class="player-badge">${suitOf(player.id)}</span>` +
+      `<span class="player-main"><strong>${player.name}</strong>` +
+      `<span class="player-meta">${state}<span>ID ${player.id}</span><span>全3ゲーム</span></span></span>` +
+      `<span class="player-stat"><small>CHIP</small><b>${player.chips ?? 3000}<i>C</i></b></span>`;
     row.addEventListener("click", () => this.invite(player));
     return row;
   }

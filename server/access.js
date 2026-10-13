@@ -9,11 +9,16 @@ function safeEqual(left, right) {
 }
 
 function parseCookies(header = "") {
-  return Object.fromEntries(header.split(";").map((part) => {
-    const index = part.indexOf("=");
-    if (index < 0) return [part.trim(), ""];
-    return [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1))];
-  }).filter(([key]) => key));
+  return Object.fromEntries(
+    header
+      .split(";")
+      .map((part) => {
+        const index = part.indexOf("=");
+        if (index < 0) return [part.trim(), ""];
+        return [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1))];
+      })
+      .filter(([key]) => key),
+  );
 }
 
 export function createAccessGate({ code = "", secret = "" } = {}) {
@@ -37,17 +42,25 @@ export function createAccessGate({ code = "", secret = "" } = {}) {
   return {
     enabled,
     authorized,
-    showPage(_request, response) { response.type("html").send(page(false)); },
+    showPage(_request, response) {
+      response.type("html").send(page(false));
+    },
     submit(request, response) {
       if (!enabled || safeEqual(request.body?.code ?? "", code)) {
-        response.setHeader("Set-Cookie", `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800`);
+        response.setHeader(
+          "Set-Cookie",
+          `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800`,
+        );
         response.redirect("/");
         return;
       }
       response.status(401).type("html").send(page(true));
     },
     middleware(request, response, next) {
-      if (authorized(request)) { next(); return; }
+      if (authorized(request)) {
+        next();
+        return;
+      }
       response.redirect(303, "/access");
     },
   };

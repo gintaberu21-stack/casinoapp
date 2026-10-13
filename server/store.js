@@ -21,11 +21,13 @@ export class Store {
       return this.memory.counter;
     }
     // includeResultMetadataを明示しないとドライバの版で戻り値の形が変わるので固定する。
-    const document = await this.database.collection("counters").findOneAndUpdate(
-      { _id: COUNTER_ID },
-      { $inc: { value: 1 } },
-      { upsert: true, returnDocument: "after", includeResultMetadata: false },
-    );
+    const document = await this.database
+      .collection("counters")
+      .findOneAndUpdate(
+        { _id: COUNTER_ID },
+        { $inc: { value: 1 } },
+        { upsert: true, returnDocument: "after", includeResultMetadata: false },
+      );
     const next = Number(document?.value);
     return Number.isInteger(next) && next > 0 ? next : 1;
   }
@@ -36,11 +38,9 @@ export class Store {
       this.memory.counter = 0;
       return;
     }
-    await this.database.collection("counters").updateOne(
-      { _id: COUNTER_ID },
-      { $set: { value: 0 } },
-      { upsert: true },
-    );
+    await this.database
+      .collection("counters")
+      .updateOne({ _id: COUNTER_ID }, { $set: { value: 0 } }, { upsert: true });
   }
 
   async findAccount(accountKey) {
@@ -49,7 +49,10 @@ export class Store {
   }
 
   async findAccountById(playerId) {
-    if (!this.usesMongo) return [...this.memory.accounts.values()].find((account) => account.playerId === playerId) ?? null;
+    if (!this.usesMongo)
+      return (
+        [...this.memory.accounts.values()].find((account) => account.playerId === playerId) ?? null
+      );
     return this.database.collection("accounts").findOne({ playerId }, { projection: { _id: 0 } });
   }
 
@@ -81,11 +84,13 @@ export class Store {
       if (account) Object.assign(account, safe);
       return account ? { ...account } : null;
     }
-    return this.database.collection("accounts").findOneAndUpdate(
-      { playerId },
-      { $set: safe },
-      { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
-    );
+    return this.database
+      .collection("accounts")
+      .findOneAndUpdate(
+        { playerId },
+        { $set: safe },
+        { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
+      );
   }
 
   async recordOutcome(playerId, outcome) {
@@ -99,11 +104,13 @@ export class Store {
       account.updatedAt = new Date();
       return { ...account };
     }
-    return this.database.collection("accounts").findOneAndUpdate(
-      { playerId },
-      { $inc: { "stats.matches": 1, [`stats.${field}`]: 1 }, $set: { updatedAt: new Date() } },
-      { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
-    );
+    return this.database
+      .collection("accounts")
+      .findOneAndUpdate(
+        { playerId },
+        { $inc: { "stats.matches": 1, [`stats.${field}`]: 1 }, $set: { updatedAt: new Date() } },
+        { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
+      );
   }
 
   async addPlayer(player) {
@@ -111,11 +118,9 @@ export class Store {
       this.memory.players.set(player.playerId, player);
       return;
     }
-    await this.database.collection("players").updateOne(
-      { playerId: player.playerId },
-      { $set: player },
-      { upsert: true },
-    );
+    await this.database
+      .collection("players")
+      .updateOne({ playerId: player.playerId }, { $set: player }, { upsert: true });
   }
 
   async setStatus(playerId, status, peerId = null) {
@@ -150,8 +155,13 @@ export class Store {
   }
 
   async listPlayers() {
-    if (!this.usesMongo) return [...this.memory.players.values()].sort((a, b) => a.playerId - b.playerId);
-    return this.database.collection("players").find({}, { projection: { _id: 0 } }).sort({ playerId: 1 }).toArray();
+    if (!this.usesMongo)
+      return [...this.memory.players.values()].sort((a, b) => a.playerId - b.playerId);
+    return this.database
+      .collection("players")
+      .find({}, { projection: { _id: 0 } })
+      .sort({ playerId: 1 })
+      .toArray();
   }
 
   async countPlayers() {
@@ -172,6 +182,11 @@ export class Store {
 
   async recentMatches(limit = 20) {
     if (!this.usesMongo) return this.memory.matches.slice(0, limit);
-    return this.database.collection("matches").find({}, { projection: { _id: 0 } }).sort({ finishedAt: -1 }).limit(limit).toArray();
+    return this.database
+      .collection("matches")
+      .find({}, { projection: { _id: 0 } })
+      .sort({ finishedAt: -1 })
+      .limit(limit)
+      .toArray();
   }
 }

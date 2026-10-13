@@ -18,7 +18,11 @@ export class MatchService extends EventTarget {
     this.connected = false;
     this.retryTimer = null;
     this.token = localStorage.getItem(ACCOUNT_TOKEN_KEY);
-    try { this.account = JSON.parse(localStorage.getItem(ACCOUNT_PROFILE_KEY)) ?? null; } catch { this.account = null; }
+    try {
+      this.account = JSON.parse(localStorage.getItem(ACCOUNT_PROFILE_KEY)) ?? null;
+    } catch {
+      this.account = null;
+    }
   }
 
   emit(type, detail = {}) {
@@ -39,7 +43,12 @@ export class MatchService extends EventTarget {
 
   connect() {
     let socket;
-    try { socket = new WebSocket(this.endpoint()); } catch { this.scheduleRetry(); return; }
+    try {
+      socket = new WebSocket(this.endpoint());
+    } catch {
+      this.scheduleRetry();
+      return;
+    }
     this.socket = socket;
     socket.addEventListener("open", () => {
       this.connected = true;
@@ -71,7 +80,11 @@ export class MatchService extends EventTarget {
 
   receive(raw) {
     let message;
-    try { message = JSON.parse(raw); } catch { return; }
+    try {
+      message = JSON.parse(raw);
+    } catch {
+      return;
+    }
     if (message.type === "welcome") {
       this.id = message.id;
       this.setAccount(message.account);
@@ -79,9 +92,18 @@ export class MatchService extends EventTarget {
       if (this.pendingProfile) this.send(this.pendingProfile);
       return;
     }
-    if (message.type === "account") { this.setAccount(message.account); return; }
-    if (message.type === "accountRequired") { this.emit("accountRequired"); return; }
-    if (message.type === "accountError") { this.emit("accountError", { message: message.message }); return; }
+    if (message.type === "account") {
+      this.setAccount(message.account);
+      return;
+    }
+    if (message.type === "accountRequired") {
+      this.emit("accountRequired");
+      return;
+    }
+    if (message.type === "accountError") {
+      this.emit("accountError", { message: message.message });
+      return;
+    }
     if (message.type === "roster") {
       this.players = message.players ?? [];
       const me = this.players.find((player) => player.playerId === this.id);
@@ -102,10 +124,24 @@ export class MatchService extends EventTarget {
       this.emit("paired", { peerId: message.from, isHost: true });
       return;
     }
-    if (message.type === "declined") { this.reset(); this.emit("declined", { peerId: message.from }); return; }
-    if (message.type === "left") { this.reset(); this.emit("left", { peerId: message.from }); return; }
-    if (message.type === "start") { this.emit("start", { peerId: message.from }); return; }
-    if (message.type === "state") { this.emit("state", { payload: message.payload }); return; }
+    if (message.type === "declined") {
+      this.reset();
+      this.emit("declined", { peerId: message.from });
+      return;
+    }
+    if (message.type === "left") {
+      this.reset();
+      this.emit("left", { peerId: message.from });
+      return;
+    }
+    if (message.type === "start") {
+      this.emit("start", { peerId: message.from });
+      return;
+    }
+    if (message.type === "state") {
+      this.emit("state", { payload: message.payload });
+      return;
+    }
     if (message.type === "action") this.emit("action", { payload: message.payload });
   }
 
@@ -113,14 +149,25 @@ export class MatchService extends EventTarget {
   roster() {
     return this.players
       .filter((player) => player.playerId !== this.id)
-      .map((player) => ({ id: player.playerId, name: player.name, status: player.status, chips: player.chips, debt: player.debt, bet: player.bet, stats: player.stats }))
+      .map((player) => ({
+        id: player.playerId,
+        name: player.name,
+        status: player.status,
+        chips: player.chips,
+        debt: player.debt,
+        bet: player.bet,
+        stats: player.stats,
+      }))
       .sort((a, b) => a.id - b.id);
   }
 
   search(query) {
     const keyword = String(query ?? "").trim();
     if (!keyword) return [];
-    return this.roster().filter((player) => String(player.id) === keyword || player.name.toLowerCase().includes(keyword.toLowerCase()));
+    return this.roster().filter(
+      (player) =>
+        String(player.id) === keyword || player.name.toLowerCase().includes(keyword.toLowerCase()),
+    );
   }
 
   invite(peerId) {
@@ -171,10 +218,19 @@ export class MatchService extends EventTarget {
   }
 
   register(name) {
-    const nickname = String(name ?? "").trim().slice(0, 16);
+    const nickname = String(name ?? "")
+      .trim()
+      .slice(0, 16);
     if (!nickname) return false;
     this.token = crypto.randomUUID();
-    this.account = { name: nickname, chips: 3000, inventory: { red: 5, blue: 3, black: 1 }, debt: 0, bet: { chips: {}, amount: 0, multiplier: 1 }, stats: { matches: 0, wins: 0, losses: 0, draws: 0 } };
+    this.account = {
+      name: nickname,
+      chips: 3000,
+      inventory: { red: 5, blue: 3, black: 1 },
+      debt: 0,
+      bet: { chips: {}, amount: 0, multiplier: 1 },
+      stats: { matches: 0, wins: 0, losses: 0, draws: 0 },
+    };
     localStorage.setItem(ACCOUNT_TOKEN_KEY, this.token);
     localStorage.setItem(ACCOUNT_PROFILE_KEY, JSON.stringify(this.account));
     if (this.socket?.readyState === 1) this.send({ type: "join", token: this.token, nickname });
@@ -191,14 +247,23 @@ export class MatchService extends EventTarget {
   }
 
   rename(name) {
-    const nickname = String(name ?? "").trim().slice(0, 16);
+    const nickname = String(name ?? "")
+      .trim()
+      .slice(0, 16);
     if (!nickname) return false;
     this.send({ type: "rename", name: nickname });
     return true;
   }
 
   saveProgress(own, peer = null) {
-    if (this.account) this.setAccount({ ...this.account, chips: own.chips, inventory: own.inventory, debt: own.debt, bet: own.bet });
+    if (this.account)
+      this.setAccount({
+        ...this.account,
+        chips: own.chips,
+        inventory: own.inventory,
+        debt: own.debt,
+        bet: own.bet,
+      });
     this.pendingProfile = { type: "profile", own, peer };
     this.send(this.pendingProfile);
   }

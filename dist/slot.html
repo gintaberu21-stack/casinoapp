@@ -1,0 +1,878 @@
+﻿<!doctype html>
+<html lang="ja">
+  <head
+    ><meta charset="utf-8" /><meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    /><meta name="theme-color" content="#23080f" /><title>ROYAL SEVENS | 文化祭カジノ</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: #f6e6bb;
+        background: radial-gradient(ellipse at top, #561021, transparent 65%), #100609;
+        font-family: system-ui, sans-serif;
+        min-height: 100svh;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        color: inherit;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      button:focus-visible {
+        outline: 3px solid #fff2ae;
+        outline-offset: 4px;
+      }
+      .game {
+        width: min(100%, 510px);
+        margin: auto;
+        padding: 24px 20px 30px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #8b692f;
+        padding-bottom: 15px;
+      }
+      .eyebrow {
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        color: #c5a66d;
+        margin: 0 0 6px;
+      }
+      h1 {
+        font:
+          700 23px Georgia,
+          serif;
+        letter-spacing: 0.08em;
+        margin: 0;
+      }
+      .help {
+        border: 1px solid #93703a;
+        background: #260a10;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+      }
+      .title {
+        text-align: center;
+        margin: 24px 0 16px;
+      }
+      .title span {
+        color: #d9ae42;
+        font-size: 23px;
+      }
+      .title h2 {
+        font:
+          900 clamp(28px, 8vw, 38px) Georgia,
+          serif;
+        letter-spacing: 0.08em;
+        margin: 5px 0;
+        background: linear-gradient(#fff5c6, #cb9636);
+        color: transparent;
+        background-clip: text;
+      }
+      .title p {
+        font-size: 10px;
+        letter-spacing: 0.28em;
+        color: #bca079;
+        margin: 8px;
+      }
+      .meters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .meter {
+        background: #120609;
+        border: 1px solid #775323;
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .meter small {
+        display: block;
+        color: #bda06f;
+        font-size: 10px;
+        letter-spacing: 0.14em;
+      }
+      .meter strong {
+        display: inline-block;
+        font:
+          700 25px Georgia,
+          serif;
+        margin-top: 5px;
+      }
+      .meter span {
+        font-size: 10px;
+        color: #bda06f;
+      }
+      .machine {
+        border: 3px solid #ae7d30;
+        border-radius: 22px;
+        background: linear-gradient(130deg, #651322, #300910);
+        padding: 12px;
+        box-shadow:
+          inset 0 0 0 3px #2b090f,
+          0 14px 35px #0008;
+      }
+      .bulbs {
+        display: flex;
+        justify-content: space-around;
+        padding: 1px 2px 12px;
+      }
+      .bulbs i {
+        width: 8px;
+        height: 8px;
+        background: #ffe5a2;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #ffca4d;
+      }
+      .bulbs i:nth-child(even) {
+        background: #ca7f2a;
+      }
+      .display {
+        text-align: center;
+        background: #100607;
+        border: 1px solid #987334;
+        border-radius: 6px;
+        padding: 13px 6px;
+        color: #f9d77a;
+        min-height: 47px;
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .window {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
+        margin: 13px 0;
+        background: #18090b;
+        padding: 8px;
+        border: 2px solid #b68b43;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .reel {
+        height: 204px;
+        overflow: hidden;
+        background: linear-gradient(#aa9f88, #fff8e6 28%, #fff8e6 72%, #aa9f88);
+        border-radius: 5px;
+        text-align: center;
+        box-shadow: inset 0 0 10px #0005;
+      }
+      .symbol {
+        height: 68px;
+        display: grid;
+        place-items: center;
+        font-size: 42px;
+        font-family: Georgia, serif;
+        font-weight: 900;
+        color: #c81c39;
+        text-shadow: 1px 2px #710c20;
+      }
+      .reel {
+        position: relative;
+      }
+      .reel-strip {
+        will-change: transform;
+      }
+      .reel:after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(#30231970, transparent 32%, transparent 68%, #30231970);
+      }
+      .symbol.bar {
+        font:
+          900 24px Georgia,
+          serif;
+        color: #fff7dc;
+        text-shadow: none;
+      }
+      .symbol.bar span {
+        background: #211b21;
+        border: 3px double #d4b26a;
+        padding: 3px;
+      }
+      .payline {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 68px;
+        transform: translateY(-50%);
+        border-block: 2px solid #d1193970;
+        pointer-events: none;
+      }
+      .payline:before {
+        content: "▶";
+        position: absolute;
+        left: 0;
+        top: 22px;
+        color: #e72c47;
+        font-size: 16px;
+      }
+      .stops {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        padding: 0 12px 4px;
+      }
+      .stop {
+        height: 36px;
+        border-radius: 20px;
+        border: 2px solid #db9b64;
+        background: linear-gradient(#fa5263, #a6102b);
+        box-shadow: 0 4px 0 #460817;
+        font-size: 10px;
+        letter-spacing: 0.13em;
+      }
+      .spinning .symbol {
+        filter: blur(0.6px);
+      }
+      .controls {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        margin: 22px 0;
+      }
+      .bet-controls {
+        flex: 1;
+      }
+      .bet-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid #8f692f;
+        border-radius: 28px;
+        padding: 4px;
+      }
+      .bet-row button {
+        width: 42px;
+        height: 42px;
+        border: 1px solid #8f692f;
+        border-radius: 50%;
+        background: #420e1a;
+        font-size: 22px;
+      }
+      .bet {
+        text-align: center;
+      }
+      .bet small {
+        display: block;
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        color: #bba070;
+      }
+      .bet strong {
+        font:
+          700 22px Georgia,
+          serif;
+      }
+      .max {
+        width: 100%;
+        height: 40px;
+        margin-top: 8px;
+        border: 1px solid #b6883e;
+        border-radius: 24px;
+        background: transparent;
+        font:
+          700 13px Georgia,
+          serif;
+        letter-spacing: 0.15em;
+      }
+      .spin {
+        width: 110px;
+        height: 110px;
+        flex-shrink: 0;
+        border: 5px solid #c39a4b;
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 20%, #ff666d, #c41636 55%, #67091b);
+        font:
+          900 23px Georgia,
+          serif;
+        box-shadow:
+          0 8px 22px #0008,
+          inset 0 -6px 12px #0005;
+      }
+      .payouts {
+        border: 1px solid #604521;
+        border-radius: 12px;
+        background: #100609;
+        padding: 14px;
+      }
+      .payouts h3 {
+        font:
+          700 11px Georgia,
+          serif;
+        letter-spacing: 0.2em;
+        color: #c5a36a;
+        margin: 0 0 12px;
+      }
+      .payout-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 18px;
+        font-size: 11px;
+      }
+      .payout-grid div {
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .payout-grid b {
+        color: #f4cf78;
+      }
+      .note {
+        text-align: center;
+        font-size: 11px;
+        color: #b49b80;
+        line-height: 1.8;
+        margin: 14px 0;
+      }
+      .reset {
+        display: block;
+        margin: auto;
+        border: 0;
+        border-bottom: 1px solid #795a33;
+        background: none;
+        font-size: 11px;
+        padding: 6px;
+        color: #c5ac88;
+      }
+      .hit .payline {
+        border-color: #ffdf75;
+        box-shadow: 0 0 18px #ffe47b;
+      }
+      .hit .display {
+        color: #fff0ae;
+        text-shadow: 0 0 15px #ffc944;
+      }
+      dialog {
+        max-width: 420px;
+        width: calc(100% - 32px);
+        background: #290b14;
+        color: #f6e6bb;
+        border: 1px solid #c59a4c;
+        border-radius: 16px;
+        padding: 24px;
+        line-height: 1.9;
+      }
+      dialog::backdrop {
+        background: #000b;
+      }
+      dialog h2 {
+        font-size: 20px;
+      }
+      dialog button {
+        width: 100%;
+        padding: 10px;
+        background: #6e1830;
+        border: 1px solid #bd934c;
+        border-radius: 8px;
+      }
+      @media (min-width: 800px) {
+        .game {
+          padding-top: 32px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spinning .symbol {
+          filter: none;
+        }
+      }
+
+      .symbol.lemon {
+        color: #239145;
+        text-shadow: 0 2px #145027;
+        font-size: 46px;
+      }
+      .symbol.orange {
+        color: #ed7c13;
+        text-shadow: 0 2px #995014;
+        font-size: 48px;
+      }
+      .symbol.watermelon {
+        color: #08a9b5;
+        text-shadow: 0 2px #176777;
+        font-size: 48px;
+      }
+      .symbol.star {
+        color: #5367da;
+        text-shadow: 0 2px #303d88;
+        font-size: 48px;
+      }
+      .symbol.cherry span {
+        filter: hue-rotate(325deg);
+      }
+
+      .hit .bulbs i {
+        animation: win-bulb 1s steps(1, end) infinite;
+      }
+      .hit .bulbs i:nth-child(even) {
+        animation-delay: -0.5s;
+      }
+      @keyframes win-bulb {
+        0%,
+        100% {
+          background: #fff9e5;
+          box-shadow:
+            0 0 5px #fff,
+            0 0 14px #fff0b0,
+            0 0 25px #ffe09a;
+        }
+        50% {
+          background: #ff982a;
+          box-shadow:
+            0 0 5px #ffb24b,
+            0 0 14px #ff8a19,
+            0 0 25px #ff6c16;
+        }
+      }
+
+      /* Keep account and wager digits on one baseline with equal-width numerals. */
+      .meter {
+        display: grid;
+        grid-template-columns: minmax(0, max-content) auto;
+        column-gap: 6px;
+        align-content: start;
+        align-items: baseline;
+      }
+      .meter small {
+        grid-column: 1/-1;
+      }
+      .meter strong {
+        font-family: Arial, "Helvetica Neue", sans-serif;
+        font-weight: 700;
+        font-size: 25px;
+        line-height: 1.2;
+        font-variant-numeric: lining-nums tabular-nums;
+        font-feature-settings:
+          "lnum" 1,
+          "tnum" 1;
+        letter-spacing: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .meter > span {
+        line-height: 1.2;
+        align-self: baseline;
+      }
+      .bet strong {
+        display: block;
+        font-family: Arial, "Helvetica Neue", sans-serif;
+        font-weight: 700;
+        font-size: 22px;
+        line-height: 1.2;
+        font-variant-numeric: lining-nums tabular-nums;
+        font-feature-settings:
+          "lnum" 1,
+          "tnum" 1;
+        letter-spacing: 0;
+      }
+      .payout-grid b,
+      .slot-chip-group > span {
+        font-family: Arial, "Helvetica Neue", sans-serif;
+        font-variant-numeric: lining-nums tabular-nums;
+        font-feature-settings:
+          "lnum" 1,
+          "tnum" 1;
+        line-height: 1.3;
+      }
+    </style></head
+  >
+  <body
+    ><main class="game"
+      ><header
+        ><div><h1>ROYAL SEVENS</h1></div
+        ><button class="help" id="help" aria-label="遊び方を開く">?</button></header
+      ><section class="title"><span aria-hidden="true">♛</span><h2>ROYAL SEVENS</h2></section
+      ><section class="meters"
+        ><div class="meter"
+          ><small>所持チップ</small><strong id="balance">?</strong> <span>CHIP</span></div
+        ><div class="meter"
+          ><small>WIN / 今回の獲得</small><strong id="win">0</strong> <span>CHIP</span></div
+        ></section
+      ><section class="machine" id="machine" aria-label="スロットマシン"
+        ><div class="bulbs" aria-hidden="true"
+          ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+          ><i></i></div
+        ><div class="display" id="status" role="status" aria-live="polite">SPINでスタート</div
+        ><div class="window"
+          ><div class="reel" id="reel0" aria-label="左リール"></div
+          ><div class="reel" id="reel1" aria-label="中リール"></div
+          ><div class="reel" id="reel2" aria-label="右リール"></div></div
+        ><div class="stops"
+          ><button class="stop" data-reel="0" disabled aria-label="左リールを止める">STOP</button
+          ><button class="stop" data-reel="1" disabled aria-label="中リールを止める">STOP</button
+          ><button class="stop" data-reel="2" disabled aria-label="右リールを止める"
+            >STOP</button
+          ></div
+        ></section
+      ><div class="slot-chip-rack" id="slot-bet-chips" aria-label="Selected bet chips"></div
+      ><section class="controls" aria-label="ベットと開始"
+        ><div class="bet-controls"
+          ><div class="bet-row"
+            ><button id="down" aria-label="ベットを下げる">−</button
+            ><div class="bet"><small>BET / CHIP</small><strong id="bet">100</strong></div
+            ><button id="up" aria-label="ベットを上げる">+</button></div
+          ><button class="max" id="max">MAX BET</button></div
+        ><button class="spin" id="spin">SPIN</button></section
+      ><section class="payouts"
+        ><h3>PAYOUT TABLE · 中央＋斜めの3ライン</h3
+        ><div class="payout-grid"
+          ><div><span>7 7 7</span><b>×100</b></div
+          ><div><span>BAR ×3</span><b>×40</b></div
+          ><div><span>💎 ×3</span><b>×20</b></div
+          ><div><span>🔔 ×3</span><b>×10</b></div
+          ><div><span>🍒 ×3</span><b>×5</b></div
+          ><div><span>左に 🍒</span><b>×2</b></div
+          ><div><span style="color: #5367da">★ ×3</span><b>×10</b></div
+          ><div><span style="color: #239145">♣ ×3</span><b>×5</b></div
+          ><div><span>🍇 ×3</span><b>×5</b></div
+          ><div><span style="color: #ed7c13">☀︎ ×3</span><b>×5</b></div
+          ><div><span style="color: #08a9b5">❄︎ ×3</span><b>×5</b></div></div
+        ></section
+      ><p class="note"
+        >SPIN → 3つのSTOPでリールを止めよう<br />中央・右下がり・右上がりで判定。複数ラインの配当は合算します。左チェリーの2倍は中央のみです。</p
+      ><p class="note" id="account-name"></p
+      ><button class="reset" id="retry" hidden>RECONNECT</button></main
+    ><dialog id="rules"
+      ><h2>遊び方</h2
+      ><p
+        >① BETを選んでSPINを押します。<br />② 各STOPで好きな順番にリールを停止。<br />③
+        中央の横一列、または斜めに同じ絵柄が3つ揃うと獲得！中央の左だけチェリーでも2倍です。</p
+      ><p
+        >ベットは100・200・300・400・500
+        CHIP。開始時にベットを引き、停止後に配当を加えます。30秒後には自動停止します。</p
+      ><p>ブラックジャックと共通のチップを使用します。</p><button id="close">閉じる</button></dialog
+    >
+    <script>
+      "use strict";
+      const symbolOrder = [
+        "seven",
+        "bell",
+        "lemon",
+        "cherry",
+        "grape",
+        "bar",
+        "orange",
+        "diamond",
+        "watermelon",
+        "star",
+      ];
+      const strips = [0, 2, 4].map((offset) =>
+        Array.from({ length: 30 }, (_, i) => symbolOrder[(i + offset) % symbolOrder.length]),
+      );
+      const pay = {
+          seven: 100,
+          bar: 40,
+          diamond: 20,
+          bell: 10,
+          cherry: 5,
+          lemon: 5,
+          grape: 5,
+          orange: 5,
+          watermelon: 5,
+          star: 10,
+        },
+        symbols = {
+          seven: "7",
+          bar: "BAR",
+          diamond: "💎",
+          bell: "🔔",
+          cherry: "🍒",
+          lemon: "♣",
+          grape: "🍇",
+          orange: "☀︎",
+          watermelon: "❄︎",
+          star: "★",
+        },
+        bets = [100, 200, 300, 400, 500];
+      const $ = (id) => document.getElementById(id);
+      let balance = 0,
+        betIndex = 0,
+        win = 0,
+        indices = [0, 1, 2],
+        running = [false, false, false],
+        tick = null,
+        timeout = null,
+        roundBet = 0;
+      let connected = false,
+        pending = false,
+        roundId = null,
+        serverResult = null;
+      const stopPending = [false, false, false];
+      const busy = () => pending || running.some(Boolean);
+      const fmt = (n) => n.toLocaleString("ja-JP");
+      function renderBetChips() {
+        let remainder = bets[betIndex];
+        const groups = [];
+        for (const [color, value] of [
+          ["black", 1000],
+          ["blue", 500],
+          ["red", 100],
+          ["white", 1],
+        ]) {
+          const count = Math.floor(remainder / value);
+          remainder %= value;
+          if (count)
+            groups.push(
+              '<span class="slot-chip-group" title="' +
+                value +
+                ' CHIP"><i class="casino-chip is-' +
+                color +
+                '" aria-hidden="true"></i><span class="sr-only">' +
+                value +
+                " × " +
+                count +
+                "</span></span>",
+            );
+        }
+        $("slot-bet-chips").innerHTML = groups.join("");
+      }
+      function render() {
+        renderBetChips();
+        $("balance").textContent = fmt(balance);
+        $("win").textContent = fmt(win);
+        $("bet").textContent = fmt(bets[betIndex]);
+        $("spin").disabled = !connected || busy() || balance < bets[betIndex];
+        $("spin").textContent = busy() ? "···" : "SPIN";
+        $("down").disabled = busy() || betIndex === 0;
+        $("up").disabled = busy() || betIndex === bets.length - 1;
+        $("max").disabled = busy() || balance < 100;
+        document
+          .querySelectorAll("[data-reel]")
+          .forEach(
+            (b) =>
+              (b.disabled =
+                !running[Number(b.dataset.reel)] || stopPending[Number(b.dataset.reel)]),
+          );
+        indices.forEach((v, r) => $("reel" + r).classList.toggle("spinning", running[r]));
+      }
+      function recordSlotRound(round) {
+        import("./js/game-records.js").then(({ recordGame }) =>
+          recordGame("slot", round.win - round.bet, round.id, round.win),
+        );
+      }
+      function settleReel(r) {
+        running[r] = false;
+        if (!running.some(Boolean)) {
+          cancelAnimationFrame(tick);
+          clearTimeout(timeout);
+          if (serverResult?.done) {
+            win = serverResult.win;
+            recordSlotRound(serverResult);
+            $("status").textContent = win ? "WIN! + " + fmt(win) + " CHIP" : "TRY AGAIN";
+            $("machine").classList.toggle("hit", win > 0);
+          }
+          if (balance < bets[betIndex])
+            betIndex = Math.max(
+              0,
+              bets.findLastIndex((b) => b <= balance),
+            );
+        }
+        render();
+      }
+      const positions = [0, 0, 0],
+        brakes = [null, null, null],
+        tracks = [];
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      function buildReels() {
+        strips.forEach((strip, r) => {
+          const n = strip.length;
+          positions[r] = n + indices[r] - 1;
+          $("reel" + r).innerHTML =
+            '<div class="reel-strip">' +
+            Array.from({ length: n * 3 }, (_, i) => {
+              const key = strip[i % n];
+              return '<div class="symbol ' + key + '"><span>' + symbols[key] + "</span></div>";
+            }).join("") +
+            "</div>";
+          tracks[r] = $("reel" + r).firstElementChild;
+          paint(r);
+        });
+      }
+      function paint(r) {
+        tracks[r].style.transform = "translate3d(0," + -positions[r] * 68 + "px,0)";
+      }
+      let previous = 0;
+      function frame(now) {
+        const dt = Math.min((now - previous) / 1000, 0.05);
+        previous = now;
+        for (let r = 0; r < 3; r++) {
+          if (!running[r]) continue;
+          const brake = brakes[r];
+          if (brake) {
+            const t = Math.min(1, (now - brake.start) / brake.duration);
+            positions[r] = brake.from + (brake.to - brake.from) * (1 - Math.pow(1 - t, 3));
+            paint(r);
+            if (t === 1 && !brake.waiting) {
+              indices[r] = (Math.round(positions[r]) + 1) % strips[r].length;
+              brakes[r] = null;
+              settleReel(r);
+            }
+          } else {
+            positions[r] -= dt * 10;
+            if (positions[r] < strips[r].length) positions[r] += strips[r].length;
+            paint(r);
+          }
+        }
+        if (busy()) tick = requestAnimationFrame(frame);
+      }
+      async function api(action, body = {}) {
+        if (location.protocol === "file:") throw Error("サーバーのURLから開いてください");
+        const token = localStorage.getItem("casinoDuel.accountToken");
+        if (!token) throw Error("既存のアカウントでログインしてください");
+        const response = await fetch("/api/slot/" + action, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          body: JSON.stringify(body),
+        });
+        const data = await response.json();
+        if (!response.ok) throw Error(data.error || "CONNECTION ERROR");
+        return data;
+      }
+      async function sync() {
+        try {
+          const data = await api("state");
+          balance = data.balance;
+          connected = true;
+          pending = false;
+          roundId = data.round?.id;
+          serverResult = data.round;
+          if (data.round?.done) {
+            indices = data.round.indices;
+            win = data.round.win;
+            recordSlotRound(data.round);
+            buildReels();
+            $("machine").classList.toggle("hit", win > 0);
+          }
+          $("status").textContent = "SPIN";
+          $("retry").hidden = true;
+        } catch (error) {
+          connected = false;
+          $("status").textContent = error.message;
+          $("retry").hidden = false;
+        }
+        render();
+      }
+      async function stop(r) {
+        if (!running[r] || brakes[r] || stopPending[r]) return;
+        stopPending[r] = true;
+        // Freeze on pointer-down, before waiting for the authoritative result.
+        const from = Math.floor(positions[r]);
+        positions[r] = from;
+        brakes[r] = {
+          from,
+          to: from,
+          start: performance.now(),
+          duration: 1,
+          waiting: true,
+        };
+        paint(r);
+        $("reel" + r).classList.remove("spinning");
+        render();
+        try {
+          const data = await api("stop", { roundId, reel: r });
+          balance = data.balance;
+          serverResult = data.round;
+          indices[r] = data.round.indices[r];
+          positions[r] = 30 + indices[r] - 1;
+          brakes[r] = null;
+          paint(r);
+          settleReel(r);
+        } catch (error) {
+          connected = false;
+          $("status").textContent = error.message;
+          $("retry").hidden = false;
+        } finally {
+          stopPending[r] = false;
+          render();
+        }
+      }
+      $("spin").addEventListener("click", async () => {
+        if (!connected || busy() || balance < bets[betIndex]) return;
+        pending = true;
+        render();
+        try {
+          const data = await api("start", { bet: bets[betIndex] });
+          roundId = data.round.id;
+          roundBet = data.round.bet;
+          balance = data.balance;
+          serverResult = null;
+          win = 0;
+          indices = data.round.initial;
+          buildReels();
+          running = [true, true, true];
+          brakes.fill(null);
+          stopPending.fill(false);
+          $("machine").classList.remove("hit");
+          $("status").textContent = "STOP";
+          previous = performance.now();
+          tick = requestAnimationFrame(frame);
+          timeout = setTimeout(() => {
+            [0, 1, 2].forEach(stop);
+          }, 30000);
+        } catch (error) {
+          $("status").textContent = error.message;
+        } finally {
+          pending = false;
+          render();
+        }
+      });
+      document.querySelectorAll("[data-reel]").forEach((button) => {
+        button.style.touchAction = "manipulation";
+        button.addEventListener("pointerdown", (event) => {
+          if (event.button === 0 && event.isPrimary) stop(Number(button.dataset.reel));
+        });
+        // Retain keyboard and assistive-technology activation.
+        button.addEventListener("click", () => stop(Number(button.dataset.reel)));
+      });
+      $("down").onclick = () => {
+        if (!busy()) {
+          betIndex = Math.max(0, betIndex - 1);
+          render();
+        }
+      };
+      $("up").onclick = () => {
+        if (!busy()) {
+          betIndex = Math.min(bets.length - 1, betIndex + 1);
+          render();
+        }
+      };
+      $("max").onclick = () => {
+        if (!busy()) {
+          betIndex = Math.max(
+            0,
+            bets.findLastIndex((b) => b <= balance),
+          );
+          render();
+        }
+      };
+      $("retry").onclick = async () => {
+        cancelAnimationFrame(tick);
+        clearTimeout(timeout);
+        running = [false, false, false];
+        brakes.fill(null);
+        stopPending.fill(false);
+        await sync();
+      };
+      $("help").onclick = () => $("rules").showModal();
+      $("close").onclick = () => $("rules").close();
+      buildReels();
+      render();
+      sync();
+    </script>
+    <script type="module" src="./js/shared-footer.js?v=1"></script> </body
+></html>

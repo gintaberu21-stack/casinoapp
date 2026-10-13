@@ -1,7 +1,7 @@
 import { createDeck, scoreHand } from "./deck.js";
 import { dealSpecials } from "./skills.js";
 
-const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
+const opponentOf = (actor) => (actor === "player" ? "dealer" : "player");
 
 /** 1試合のラウンド数。 */
 export const MATCH_ROUNDS = 3;
@@ -14,8 +14,11 @@ export const CHIP_TYPES = {
   white: { value: 1, label: "WHITE" },
 };
 export const STARTING_INVENTORY = { red: 5, blue: 3, black: 1 };
-export const inventoryValue = (inventory = {}) => Object.entries(CHIP_TYPES)
-  .reduce((sum, [type, chip]) => sum + (Number(inventory[type]) || 0) * chip.value, 0);
+export const inventoryValue = (inventory = {}) =>
+  Object.entries(CHIP_TYPES).reduce(
+    (sum, [type, chip]) => sum + (Number(inventory[type]) || 0) * chip.value,
+    0,
+  );
 export const valueToInventory = (amount) => {
   let remaining = Math.max(0, Math.round(Number(amount) || 0));
   const inventory = { red: 0, blue: 0, black: 0 };
@@ -58,10 +61,9 @@ export class CasinoDuelGame {
   /** ホストの確定状態を別端末へ送るための、JSON化可能なスナップショット。 */
   snapshot({ swapSeats = false } = {}) {
     const clone = (value) => structuredClone(value);
-    const swapPair = (pair) => swapSeats
-      ? { player: clone(pair.dealer), dealer: clone(pair.player) }
-      : clone(pair);
-    const swapActor = (actor) => swapSeats ? opponentOf(actor) : actor;
+    const swapPair = (pair) =>
+      swapSeats ? { player: clone(pair.dealer), dealer: clone(pair.player) } : clone(pair);
+    const swapActor = (actor) => (swapSeats ? opponentOf(actor) : actor);
     return {
       mode: "online",
       difficulty: this.difficulty,
@@ -92,9 +94,29 @@ export class CasinoDuelGame {
   /** ゲスト端末はゲーム計算をせず、ホストから届いた状態だけを表示する。 */
   restore(snapshot) {
     const fields = [
-      "mode", "difficulty", "names", "chips", "inventories", "debts", "baseWager", "wager", "bets", "skills", "matchRound",
-      "matchWins", "player", "dealer", "reservedCard", "stood", "autoStood",
-      "lossShield", "revealedSkills", "locked", "phase", "actor", "dealerRevealed",
+      "mode",
+      "difficulty",
+      "names",
+      "chips",
+      "inventories",
+      "debts",
+      "baseWager",
+      "wager",
+      "bets",
+      "skills",
+      "matchRound",
+      "matchWins",
+      "player",
+      "dealer",
+      "reservedCard",
+      "stood",
+      "autoStood",
+      "lossShield",
+      "revealedSkills",
+      "locked",
+      "phase",
+      "actor",
+      "dealerRevealed",
     ];
     fields.forEach((field) => {
       if (snapshot[field] !== undefined) this[field] = structuredClone(snapshot[field]);
@@ -122,15 +144,22 @@ export class CasinoDuelGame {
   startMatch(profiles = {}) {
     const profileOf = (actor, fallbackName) => ({
       name: String(profiles[actor]?.name ?? fallbackName),
-      chips: Number.isFinite(Number(profiles[actor]?.chips)) ? Math.round(Number(profiles[actor].chips)) : STARTING_CHIPS,
+      chips: Number.isFinite(Number(profiles[actor]?.chips))
+        ? Math.round(Number(profiles[actor].chips))
+        : STARTING_CHIPS,
       debt: Math.max(0, Math.round(Number(profiles[actor]?.debt) || 0)),
-      inventory: profiles[actor]?.inventory ? structuredClone(profiles[actor].inventory) : { ...STARTING_INVENTORY },
+      inventory: profiles[actor]?.inventory
+        ? structuredClone(profiles[actor].inventory)
+        : { ...STARTING_INVENTORY },
     });
     const player = profileOf("player", "YOU");
     const dealer = profileOf("dealer", "DEALER");
     this.names = { player: player.name, dealer: dealer.name };
     this.inventories = { player: player.inventory, dealer: dealer.inventory };
-    this.chips = { player: inventoryValue(player.inventory), dealer: inventoryValue(dealer.inventory) };
+    this.chips = {
+      player: inventoryValue(player.inventory),
+      dealer: inventoryValue(dealer.inventory),
+    };
     this.debts = { player: player.debt, dealer: dealer.debt };
     this.skills = dealSpecials();
     this.matchRound = 0;
@@ -147,17 +176,25 @@ export class CasinoDuelGame {
     const selected = { red: 0, blue: 0, black: 0 };
     if ((this.inventories[actor].white ?? 0) > 0) selected.white = 0;
     Object.keys(selected).forEach((type) => {
-      selected[type] = Math.max(0, Math.min(
-        Math.round(Number(selection.chips?.[type]) || 0),
-        Math.round(Number(this.inventories[actor]?.[type]) || 0),
-      ));
+      selected[type] = Math.max(
+        0,
+        Math.min(
+          Math.round(Number(selection.chips?.[type]) || 0),
+          Math.round(Number(this.inventories[actor]?.[type]) || 0),
+        ),
+      );
     });
     let amount = inventoryValue(selected);
     if (amount <= 0) {
       const fallback = Object.keys(CHIP_TYPES).find((type) => this.inventories[actor]?.[type] > 0);
-      if (fallback) { selected[fallback] = 1; amount = CHIP_TYPES[fallback].value; }
+      if (fallback) {
+        selected[fallback] = 1;
+        amount = CHIP_TYPES[fallback].value;
+      }
     }
-    Object.keys(selected).forEach((type) => { this.inventories[actor][type] -= selected[type]; });
+    Object.keys(selected).forEach((type) => {
+      this.inventories[actor][type] -= selected[type];
+    });
     this.chips[actor] = inventoryValue(this.inventories[actor]);
     this.bets[actor] = { chips: selected, amount, multiplier: 1 };
     if (actor === "player") {
@@ -178,7 +215,7 @@ export class CasinoDuelGame {
   }
 
   basePayoutMultiplier() {
-    return this.mode === "solo" ? DIFFICULTY_PAYOUTS[this.difficulty] ?? 2 : 2;
+    return this.mode === "solo" ? (DIFFICULTY_PAYOUTS[this.difficulty] ?? 2) : 2;
   }
 
   addInventory(actor, addition) {
@@ -238,7 +275,10 @@ export class CasinoDuelGame {
   refreshAutoStand() {
     ["player", "dealer"].forEach((actor) => {
       if (this.score(actor) >= 21) {
-        if (!this.stood[actor]) { this.stood[actor] = true; this.autoStood[actor] = true; }
+        if (!this.stood[actor]) {
+          this.stood[actor] = true;
+          this.autoStood[actor] = true;
+        }
       } else if (this.autoStood[actor]) {
         this.stood[actor] = false;
         this.autoStood[actor] = false;
@@ -264,7 +304,8 @@ export class CasinoDuelGame {
   }
 
   applySpecial(actor, id, options = {}) {
-    if (this.phase !== "playing" || this.actor !== actor || this.locked[actor]) return { ok: false, reason: "今は必殺技を使えません" };
+    if (this.phase !== "playing" || this.actor !== actor || this.locked[actor])
+      return { ok: false, reason: "今は必殺技を使えません" };
     const skill = this.removeSkill(actor, id);
     if (!skill) return { ok: false, reason: "そのカードは持っていません" };
     const opponent = opponentOf(actor);
@@ -278,7 +319,10 @@ export class CasinoDuelGame {
     }
     if (id === "peek") this.reservedCard[actor] = this.drawCard();
     if (id === "selectReverse") {
-      const index = Math.max(0, this[opponent].findIndex((card) => card.id === options.cardId));
+      const index = Math.max(
+        0,
+        this[opponent].findIndex((card) => card.id === options.cardId),
+      );
       [result.removed] = this[opponent].splice(index, 1);
       if (result.removed) this.refreshStandAfterAttack(opponent);
     }
@@ -337,7 +381,11 @@ export class CasinoDuelGame {
   }
 
   isRoundOver() {
-    return this.score("player") > 21 || this.score("dealer") > 21 || (this.stood.player && this.stood.dealer);
+    return (
+      this.score("player") > 21 ||
+      this.score("dealer") > 21 ||
+      (this.stood.player && this.stood.dealer)
+    );
   }
 
   settle() {
@@ -353,7 +401,10 @@ export class CasinoDuelGame {
     const loser = outcome === "win" ? "dealer" : outcome === "loss" ? "player" : null;
     const winner = outcome === "win" ? "player" : outcome === "loss" ? "dealer" : null;
     const repayments = { player: 0, dealer: 0 };
-    const returns = { player: { red: 0, blue: 0, black: 0 }, dealer: { red: 0, blue: 0, black: 0 } };
+    const returns = {
+      player: { red: 0, blue: 0, black: 0 },
+      dealer: { red: 0, blue: 0, black: 0 },
+    };
     const grossDeltas = { player: 0, dealer: 0 };
     if (outcome === "draw") {
       ["player", "dealer"].forEach((actor) => {
@@ -364,11 +415,13 @@ export class CasinoDuelGame {
       const bet = this.bets[winner];
       const profit = this.winPayoutFor(winner) - bet.amount;
       returns[winner] = { ...bet.chips };
-      const profitChips = bet.multiplier === 1 && this.basePayoutMultiplier() === 2
-        ? bet.chips
-        : valueToInventory(profit);
+      const profitChips =
+        bet.multiplier === 1 && this.basePayoutMultiplier() === 2
+          ? bet.chips
+          : valueToInventory(profit);
       Object.keys(CHIP_TYPES).forEach((type) => {
-        if (profitChips[type]) returns[winner][type] = (returns[winner][type] ?? 0) + profitChips[type];
+        if (profitChips[type])
+          returns[winner][type] = (returns[winner][type] ?? 0) + profitChips[type];
       });
       this.addInventory(winner, returns[winner]);
       grossDeltas[winner] = profit;
@@ -382,7 +435,9 @@ export class CasinoDuelGame {
         this.debts[actor] -= repayments[actor];
         this.chips[actor] -= repayments[actor];
         this.inventories[actor] = valueToInventory(this.chips[actor]);
-        returns[actor] = valueToInventory(Math.max(0, inventoryValue(returns[actor]) - repayments[actor]));
+        returns[actor] = valueToInventory(
+          Math.max(0, inventoryValue(returns[actor]) - repayments[actor]),
+        );
       }
       deltas[actor] -= repayments[actor];
     }
@@ -399,8 +454,20 @@ export class CasinoDuelGame {
       dealer: this.chips.dealer - this.debts.dealer,
     };
     return {
-      outcome, blackjack, player, dealer, delta, deltas, grossDeltas, repayments, returns, stakes,
-      bankrupt, needsLoan, matchComplete, netWorth,
+      outcome,
+      blackjack,
+      player,
+      dealer,
+      delta,
+      deltas,
+      grossDeltas,
+      repayments,
+      returns,
+      stakes,
+      bankrupt,
+      needsLoan,
+      matchComplete,
+      netWorth,
       shielded: false,
       wager: this.wagerFor("player"),
       bets: structuredClone(this.bets),
@@ -409,9 +476,13 @@ export class CasinoDuelGame {
       chips: { ...this.chips },
       debts: { ...this.debts },
       // 借金で順位が有利にならないよう、最終的な純資産で決める。
-      matchOutcome: !matchComplete ? null
-        : netWorth.player > netWorth.dealer ? "win"
-          : netWorth.player < netWorth.dealer ? "loss" : "draw",
+      matchOutcome: !matchComplete
+        ? null
+        : netWorth.player > netWorth.dealer
+          ? "win"
+          : netWorth.player < netWorth.dealer
+            ? "loss"
+            : "draw",
     };
   }
 

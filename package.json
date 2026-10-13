@@ -12,11 +12,16 @@
     "dev": "node --watch server/index.js",
     "start:env": "node --env-file=.env server/index.js",
     "check": "node --check dist/js/app.js && node --check server/index.js",
-    "test:integration": "node test/integration.mjs"
+    "test:integration": "node test/integration.mjs",
+    "format": "prettier --write dist/**/*.{html,css,js} server/**/*.js",
+    "format:check": "prettier --check dist/**/*.{html,css,js} server/**/*.js"
   },
   "dependencies": {
     "express": "^4.21.2",
     "mongodb": "^6.12.0",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9"
   }
 }

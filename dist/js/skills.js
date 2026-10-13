@@ -1,13 +1,69 @@
 // rank A=金 / B=従来の紫 / C=シルバー
 export const SPECIALS = [
-  { id: "shuffle", rank: "A", icon: "⇄", name: "SHUFFLE", short: "SWAP 1 CARD", description: "相手の手札をすべて公開し、自分と相手から1枚ずつ選んで交換する。" },
-  { id: "selectReverse", rank: "A", icon: "✦", name: "SELECT REVERSE", short: "SELECT & DROP", description: "相手の手札を公開し、選んだ1枚を捨てる。" },
-  { id: "triple", rank: "A", icon: "Ⅲ", name: "TRIPLE WIN", short: "WIN × 3", description: "このラウンドの勝利時の受け取り総額を3倍にする。DOUBLE WINと併用すると6倍。" },
-  { id: "double", rank: "B", icon: "Ⅱ", name: "DOUBLE WIN", short: "WIN × 2", description: "このラウンドの勝利時の受け取り総額を2倍にする。TRIPLE WINと併用すると6倍。" },
-  { id: "extraDraw", rank: "B", icon: "+1", name: "EXTRA DRAW", short: "DRAW & DROP", description: "カードを1枚引いた後、自分の手札から1枚選んで捨てる。" },
-  { id: "lock", rank: "B", icon: "⊘", name: "LOCK", short: "SEAL SKILL", description: "相手の次のターンだけ必殺技を封印する。" },
-  { id: "peek", rank: "C", icon: "◉", name: "FUTURE SIGHT", short: "NEXT CARD", description: "次に自分が引くカードを先に確認できる。" },
-  { id: "shield", rank: "C", icon: "◉", name: "ARCANA EYE", short: "VIEW RIVAL", description: "相手が持っている必殺技カードをすべて見る。" },
+  {
+    id: "shuffle",
+    rank: "A",
+    icon: "⇄",
+    name: "SHUFFLE",
+    short: "SWAP 1 CARD",
+    description: "相手の手札をすべて公開し、自分と相手から1枚ずつ選んで交換する。",
+  },
+  {
+    id: "selectReverse",
+    rank: "A",
+    icon: "✦",
+    name: "SELECT REVERSE",
+    short: "SELECT & DROP",
+    description: "相手の手札を公開し、選んだ1枚を捨てる。",
+  },
+  {
+    id: "triple",
+    rank: "A",
+    icon: "Ⅲ",
+    name: "TRIPLE WIN",
+    short: "WIN × 3",
+    description: "このラウンドの勝利時の受け取り総額を3倍にする。DOUBLE WINと併用すると6倍。",
+  },
+  {
+    id: "double",
+    rank: "B",
+    icon: "Ⅱ",
+    name: "DOUBLE WIN",
+    short: "WIN × 2",
+    description: "このラウンドの勝利時の受け取り総額を2倍にする。TRIPLE WINと併用すると6倍。",
+  },
+  {
+    id: "extraDraw",
+    rank: "B",
+    icon: "+1",
+    name: "EXTRA DRAW",
+    short: "DRAW & DROP",
+    description: "カードを1枚引いた後、自分の手札から1枚選んで捨てる。",
+  },
+  {
+    id: "lock",
+    rank: "B",
+    icon: "⊘",
+    name: "LOCK",
+    short: "SEAL SKILL",
+    description: "相手の次のターンだけ必殺技を封印する。",
+  },
+  {
+    id: "peek",
+    rank: "C",
+    icon: "◉",
+    name: "FUTURE SIGHT",
+    short: "NEXT CARD",
+    description: "次に自分が引くカードを先に確認できる。",
+  },
+  {
+    id: "shield",
+    rank: "C",
+    icon: "◉",
+    name: "ARCANA EYE",
+    short: "VIEW RIVAL",
+    description: "相手が持っている必殺技カードをすべて見る。",
+  },
 ];
 
 export const RANK_LABELS = { A: "Aランク", B: "Bランク", C: "Cランク" };
@@ -25,7 +81,8 @@ function drawByRank(pool) {
   if (!ranks.length) return null;
   const total = ranks.reduce((sum, rank) => sum + RANK_WEIGHTS[rank], 0);
   let roll = Math.random() * total;
-  const rank = ranks.find((candidate) => (roll -= RANK_WEIGHTS[candidate]) < 0) ?? ranks[ranks.length - 1];
+  const rank =
+    ranks.find((candidate) => (roll -= RANK_WEIGHTS[candidate]) < 0) ?? ranks[ranks.length - 1];
   const candidates = pool.filter((special) => special.rank === rank);
   const picked = candidates[Math.floor(Math.random() * candidates.length)];
   pool.splice(pool.indexOf(picked), 1);

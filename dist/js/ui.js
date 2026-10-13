@@ -2,11 +2,13 @@ import { SPECIALS } from "./skills.js";
 import { MATCH_ROUNDS, CHIP_TYPES, inventoryValue } from "./game.js";
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-const opponentOf = (actor) => actor === "player" ? "dealer" : "player";
+const opponentOf = (actor) => (actor === "player" ? "dealer" : "player");
 
 export class GameUI {
   constructor() {
-    this.els = Object.fromEntries([...document.querySelectorAll("[id]")].map((node) => [node.id, node]));
+    this.els = Object.fromEntries(
+      [...document.querySelectorAll("[id]")].map((node) => [node.id, node]),
+    );
     this.toastTimer = null;
     this.onSpecial = null;
     this.onlineRole = null;
@@ -27,7 +29,9 @@ export class GameUI {
 
   seatLabels(game) {
     if (game.names) return { player: game.names.player, dealer: game.names.dealer };
-    return this.isVersus(game) ? { player: "PLAYER 1", dealer: "PLAYER 2" } : { player: "YOU", dealer: "DEALER" };
+    return this.isVersus(game)
+      ? { player: "PLAYER 1", dealer: "PLAYER 2" }
+      : { player: "YOU", dealer: "DEALER" };
   }
 
   cue(name) {
@@ -49,7 +53,8 @@ export class GameUI {
 
   createCard(card, { hidden = false, animation = "" } = {}) {
     const node = document.createElement("div");
-    node.className = `playing-card ${card.color === "red" ? "is-red" : ""} ${hidden ? "is-face-down" : ""} ${animation}`.trim();
+    node.className =
+      `playing-card ${card.color === "red" ? "is-red" : ""} ${hidden ? "is-face-down" : ""} ${animation}`.trim();
     node.dataset.cardId = card.id;
     node.setAttribute("aria-label", hidden ? "伏せカード" : `${card.symbol}${card.rank}`);
     node.innerHTML = `<div class="card-inner" aria-hidden="true"><div class="card-face"><span class="card-corner">${card.rank}<i>${card.symbol}</i></span><span class="card-suit">${card.symbol}</span><span class="card-corner bottom">${card.rank}<i>${card.symbol}</i></span></div><div class="card-back"></div></div>`;
@@ -78,9 +83,11 @@ export class GameUI {
   }
 
   renderChipCollection(container, inventory = {}) {
-    container.replaceChildren(...Object.keys(CHIP_TYPES)
-      .filter((type) => (inventory[type] ?? 0) > 0)
-      .map((type) => this.createChipStack(type, inventory[type])));
+    container.replaceChildren(
+      ...Object.keys(CHIP_TYPES)
+        .filter((type) => (inventory[type] ?? 0) > 0)
+        .map((type) => this.createChipStack(type, inventory[type])),
+    );
   }
 
   cardIsHidden(game, target, index) {
@@ -110,10 +117,20 @@ export class GameUI {
   }
 
   async dealInitial(game) {
-    const sequence = [["player", 0], ["dealer", 0], ["player", 1], ["dealer", 1]];
+    const sequence = [
+      ["player", 0],
+      ["dealer", 0],
+      ["player", 1],
+      ["dealer", 1],
+    ];
     for (const [target, index] of sequence) {
       const card = game[target][index];
-      this.els[`${target}-hand`].append(this.createCard(card, { hidden: this.cardIsHidden(game, target, index), animation: "deal-in" }));
+      this.els[`${target}-hand`].append(
+        this.createCard(card, {
+          hidden: this.cardIsHidden(game, target, index),
+          animation: "deal-in",
+        }),
+      );
       this.cue("deal");
       await wait(240);
     }
@@ -130,7 +147,9 @@ export class GameUI {
 
   renderHands(game) {
     ["player", "dealer"].forEach((target) => {
-      const cards = game[target].map((card, index) => this.createCard(card, { hidden: this.cardIsHidden(game, target, index) }));
+      const cards = game[target].map((card, index) =>
+        this.createCard(card, { hidden: this.cardIsHidden(game, target, index) }),
+      );
       this.els[`${target}-hand`].replaceChildren(...cards);
     });
     this.updateScores(game);
@@ -138,7 +157,10 @@ export class GameUI {
 
   async addCard(game, target, card) {
     const index = game[target].length - 1;
-    const node = this.createCard(card, { hidden: this.cardIsHidden(game, target, index), animation: "hit-in" });
+    const node = this.createCard(card, {
+      hidden: this.cardIsHidden(game, target, index),
+      animation: "hit-in",
+    });
     this.els[`${target}-hand`].append(node);
     this.cue("deal");
     await wait(620);
@@ -148,7 +170,10 @@ export class GameUI {
   revealDealer(game) {
     game.dealerRevealed = true;
     const hidden = this.els["dealer-hand"].querySelector(".is-face-down");
-    if (!hidden) { this.updateScores(game); return wait(0); }
+    if (!hidden) {
+      this.updateScores(game);
+      return wait(0);
+    }
     hidden.classList.remove("is-face-down");
     const card = game.dealer.find(({ id }) => id === hidden.dataset.cardId);
     if (card) hidden.setAttribute("aria-label", `${card.symbol}${card.rank}`);
@@ -162,8 +187,15 @@ export class GameUI {
     // オンライン対戦では両端末が同じ合計点を常に表示する。
     // 以前は相手の伏せカードに合わせて最初の1枚分だけを表示していたため、
     // HIT後の合計がSHOWDOWNまで同期していないように見えていた。
-    const visibleDealer = game.dealerRevealed || game.mode === "online" || (game.mode === "duo" && game.actor === "dealer");
-    const dealerValue = visibleDealer ? game.score("dealer") : game.dealer[0] ? this.singleCardValue(game.dealer[0]) : "?";
+    const visibleDealer =
+      game.dealerRevealed ||
+      game.mode === "online" ||
+      (game.mode === "duo" && game.actor === "dealer");
+    const dealerValue = visibleDealer
+      ? game.score("dealer")
+      : game.dealer[0]
+        ? this.singleCardValue(game.dealer[0])
+        : "?";
     this.els["dealer-score"].textContent = dealerValue;
     this.els["dealer-score"].classList.toggle("is-hidden", !visibleDealer);
     this.els["player-chip-count"].textContent = game.chips.player;
@@ -188,7 +220,9 @@ export class GameUI {
   }
 
   async animateChipPayout(result) {
-    const actors = ["player", "dealer"].filter((actor) => Object.values(result.returns?.[actor] ?? {}).some(Boolean));
+    const actors = ["player", "dealer"].filter((actor) =>
+      Object.values(result.returns?.[actor] ?? {}).some(Boolean),
+    );
     for (const actor of actors) {
       const target = this.els[`${actor}-chip-count`].getBoundingClientRect();
       const flight = document.createElement("div");
@@ -206,8 +240,13 @@ export class GameUI {
   }
 
   async animateChipChange(game, before) {
-    const changes = ["player", "dealer"].map((actor) => ({ actor, from: before[actor], to: game.chips[actor] })).filter(({ from, to }) => from !== to);
-    if (!changes.length) { this.updateScores(game); return; }
+    const changes = ["player", "dealer"]
+      .map((actor) => ({ actor, from: before[actor], to: game.chips[actor] }))
+      .filter(({ from, to }) => from !== to);
+    if (!changes.length) {
+      this.updateScores(game);
+      return;
+    }
     this.updateScores(game);
     const nodesFor = (actor) => [this.els[`${actor}-chip-count`]];
     changes.forEach(({ actor, from, to }) => {
@@ -230,13 +269,17 @@ export class GameUI {
     const steps = 18;
     for (let step = 1; step <= steps; step += 1) {
       changes.forEach(({ actor, from, to }) => {
-        const value = Math.round(from + (to - from) * step / steps);
-        nodesFor(actor).forEach((node) => { node.textContent = value; });
+        const value = Math.round(from + ((to - from) * step) / steps);
+        nodesFor(actor).forEach((node) => {
+          node.textContent = value;
+        });
       });
       await wait(55);
     }
     await wait(250);
-    changes.forEach(({ actor }) => nodesFor(actor).forEach((node) => node.classList.remove("chip-gain", "chip-loss")));
+    changes.forEach(({ actor }) =>
+      nodesFor(actor).forEach((node) => node.classList.remove("chip-gain", "chip-loss")),
+    );
   }
 
   singleCardValue(card) {
@@ -259,14 +302,23 @@ export class GameUI {
 
   renderSpecials(game, dealing = false) {
     const displayActor = game.mode === "solo" || game.mode === "online" ? "player" : game.actor;
-    const canUse = game.phase === "playing" && game.actor === displayActor && !game.locked[displayActor];
-    const cards = game.skills[displayActor].map((special) => this.createSpecialCard(special, !canUse));
+    const canUse =
+      game.phase === "playing" && game.actor === displayActor && !game.locked[displayActor];
+    const cards = game.skills[displayActor].map((special) =>
+      this.createSpecialCard(special, !canUse),
+    );
     this.els["special-list"].replaceChildren(...cards);
-    this.els["special-owner"].textContent = game.mode === "duo" ? `★ ${displayActor === "player" ? "PLAYER 1" : "PLAYER 2"} ARCADE` : "★ YOUR ARCADE";
+    this.els["special-owner"].textContent =
+      game.mode === "duo"
+        ? `★ ${displayActor === "player" ? "PLAYER 1" : "PLAYER 2"} ARCADE`
+        : "★ YOUR ARCADE";
     // ARCANA EYE shows the opponent's cards once in its reveal overlay.
     this.els["opponent-arcana"].classList.remove("is-revealed");
     this.els["opponent-arcana"].replaceChildren();
-    if (dealing) this.els["special-list"].querySelectorAll(".special-card").forEach((card) => card.disabled = true);
+    if (dealing)
+      this.els["special-list"]
+        .querySelectorAll(".special-card")
+        .forEach((card) => (card.disabled = true));
     this.showReservedCard(game, displayActor);
   }
 
@@ -286,16 +338,27 @@ export class GameUI {
     this.els["hit-button"].disabled = !enabled;
     this.els["stand-button"].disabled = !enabled;
     const dealerTurn = actor === "dealer";
-    this.els["hit-button"].querySelector("small").textContent = dealerTurn ? "ディーラーが引く" : "カードを引く";
-    this.els["stand-button"].querySelector("small").textContent = dealerTurn ? "ディーラーが止まる" : "勝負する";
+    this.els["hit-button"].querySelector("small").textContent = dealerTurn
+      ? "ディーラーが引く"
+      : "カードを引く";
+    this.els["stand-button"].querySelector("small").textContent = dealerTurn
+      ? "ディーラーが止まる"
+      : "勝負する";
     this.els["round-status"].textContent = dealerTurn ? "DEALER TURN" : "PLAYER TURN";
     const online = document.body.dataset.mode === "online";
-    this.els["dealer-kicker"].textContent = online ? this.seatLabels({ mode: "online", names: this.currentNames }).dealer
-      : dealerTurn && document.body.dataset.mode === "duo" ? "PLAYER 2" : "THE HOUSE";
+    this.els["dealer-kicker"].textContent = online
+      ? this.seatLabels({ mode: "online", names: this.currentNames }).dealer
+      : dealerTurn && document.body.dataset.mode === "duo"
+        ? "PLAYER 2"
+        : "THE HOUSE";
   }
 
   async showSpecial(special, actor, isAi = false) {
-    this.els["special-focus-actor"].textContent = isAi ? "CPUが必殺技を発動" : actor === "player" ? "PLAYER SPECIAL" : "PLAYER 2 SPECIAL";
+    this.els["special-focus-actor"].textContent = isAi
+      ? "CPUが必殺技を発動"
+      : actor === "player"
+        ? "PLAYER SPECIAL"
+        : "PLAYER 2 SPECIAL";
     this.els["special-focus-icon"].textContent = special.icon;
     this.els["special-focus-title"].textContent = special.name;
     this.els["special-focus-effect"].textContent = special.short;
@@ -317,7 +380,11 @@ export class GameUI {
   }
 
   async highlightCards(targets, message, duration = 1000) {
-    const cards = targets.map(({ target, cardId }) => this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`)).filter(Boolean);
+    const cards = targets
+      .map(({ target, cardId }) =>
+        this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`),
+      )
+      .filter(Boolean);
     if (!cards.length) return;
     cards.forEach((card) => card.classList.add("is-targeted"));
     if (message) this.toast(message);
@@ -327,7 +394,11 @@ export class GameUI {
   }
 
   async animateCardChanges(changes) {
-    const cards = changes.map(({ target, cardId }) => this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`)).filter(Boolean);
+    const cards = changes
+      .map(({ target, cardId }) =>
+        this.els[`${target}-hand`].querySelector(`[data-card-id="${cardId}"]`),
+      )
+      .filter(Boolean);
     if (!cards.length) return;
     cards.forEach((card) => card.classList.add("is-changing-in"));
     this.cue("deal");
@@ -348,7 +419,11 @@ export class GameUI {
       choice.hidden = false;
       this.els["coin-result"].textContent = "表か裏を選んでください";
       guess = await new Promise((resolve) => {
-        choice.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => resolve(button.dataset.coin), { once: true }));
+        choice
+          .querySelectorAll("button")
+          .forEach((button) =>
+            button.addEventListener("click", () => resolve(button.dataset.coin), { once: true }),
+          );
       });
     } else {
       choice.hidden = true;
@@ -356,7 +431,15 @@ export class GameUI {
       await wait(450);
     }
     const face = options.face ?? (Math.random() < 0.5 ? "front" : "back");
-    const firstActor = options.firstActor ?? (mode === "solo" ? (guess === face ? "player" : "dealer") : (face === "front" ? "player" : "dealer"));
+    const firstActor =
+      options.firstActor ??
+      (mode === "solo"
+        ? guess === face
+          ? "player"
+          : "dealer"
+        : face === "front"
+          ? "player"
+          : "dealer");
     options.onDecision?.({ face, firstActor });
     coin.classList.add("is-tossing", `lands-${face}`);
     this.cue("coin");
@@ -364,13 +447,19 @@ export class GameUI {
     const faceLabel = face === "front" ? "表 ♦" : "裏 ♠";
     const versusLabels = this.seatLabels({ mode, names: this.currentNames });
     const actorLabel = versusLabels[firstActor];
-    const orderHeading = mode === "solo" ? (firstActor === "player" ? "あなたが先攻" : "あなたは後攻") : `${actorLabel}が先攻`;
+    const orderHeading =
+      mode === "solo"
+        ? firstActor === "player"
+          ? "あなたが先攻"
+          : "あなたは後攻"
+        : `${actorLabel}が先攻`;
     const secondActor = versusLabels[opponentOf(firstActor)];
     choice.hidden = true;
     overlay.classList.add("is-decided");
     coin.hidden = true;
     this.els["coin-heading"].textContent = orderHeading;
-    this.els["coin-result"].textContent = `${faceLabel} ／ ${actorLabel}が先攻・${secondActor}が後攻`;
+    this.els["coin-result"].textContent =
+      `${faceLabel} ／ ${actorLabel}が先攻・${secondActor}が後攻`;
     await wait(1500);
     overlay.hidden = true;
     coin.hidden = false;
@@ -381,30 +470,45 @@ export class GameUI {
     const actorName = this.currentNames?.[actor] ?? (actor === "player" ? "PLAYER 1" : "PLAYER 2");
     this.els["handoff-overlay"].hidden = false;
     this.els["handoff-overlay"].querySelector("h2").textContent = `${actorName} TURN`;
-    this.els["handoff-overlay"].querySelector("small").textContent = "相手に必殺技カードを見られないように交代";
+    this.els["handoff-overlay"].querySelector("small").textContent =
+      "相手に必殺技カードを見られないように交代";
     this.els["dealer-ready"].textContent = `${actorName} 準備OK`;
-    await new Promise((resolve) => this.els["dealer-ready"].addEventListener("click", resolve, { once: true }));
+    await new Promise((resolve) =>
+      this.els["dealer-ready"].addEventListener("click", resolve, { once: true }),
+    );
     this.els["handoff-overlay"].hidden = true;
   }
 
   async chooseCards(cards, heading = "捨てるカードを選択") {
     this.els["select-card-heading"].textContent = heading;
     const list = this.els["select-card-list"];
-    list.replaceChildren(...cards.map((card) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.cardId = card.id;
-      button.dataset.cue = "select";
-      button.append(this.createCard(card));
-      return button;
-    }));
+    list.replaceChildren(
+      ...cards.map((card) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.cardId = card.id;
+        button.dataset.cue = "select";
+        button.append(this.createCard(card));
+        return button;
+      }),
+    );
     this.els["select-card-overlay"].hidden = false;
-    const cardId = await new Promise((resolve) => list.querySelectorAll("button").forEach((button) => button.addEventListener("click", async () => {
-      list.querySelectorAll("button").forEach((item) => { item.disabled = true; });
-      button.classList.add("is-selected");
-      await wait(1000);
-      resolve(button.dataset.cardId);
-    }, { once: true })));
+    const cardId = await new Promise((resolve) =>
+      list.querySelectorAll("button").forEach((button) =>
+        button.addEventListener(
+          "click",
+          async () => {
+            list.querySelectorAll("button").forEach((item) => {
+              item.disabled = true;
+            });
+            button.classList.add("is-selected");
+            await wait(1000);
+            resolve(button.dataset.cardId);
+          },
+          { once: true },
+        ),
+      ),
+    );
     this.els["select-card-overlay"].hidden = true;
     return cardId;
   }
@@ -416,7 +520,9 @@ export class GameUI {
   async showOpponentSpecialCards(skills, game, actor) {
     const displayActor = game.mode === "duo" ? game.actor : "player";
     const ownCardsRevealed = actor !== displayActor;
-    this.els["select-card-heading"].textContent = ownCardsRevealed ? "自分の必殺技カードが公開された" : "相手の必殺技カードを公開";
+    this.els["select-card-heading"].textContent = ownCardsRevealed
+      ? "自分の必殺技カードが公開された"
+      : "相手の必殺技カードを公開";
     const list = this.els["select-card-list"];
     list.classList.add("is-skill-reveal");
     list.replaceChildren(...skills.map((special) => this.createSpecialCard(special, true)));
@@ -447,7 +553,9 @@ export class GameUI {
         button.dataset.cue = "select";
         button.append(this.createCard(card));
         button.addEventListener("click", () => {
-          cardsNode.querySelectorAll("button").forEach((item) => item.classList.remove("is-selected"));
+          cardsNode
+            .querySelectorAll("button")
+            .forEach((item) => item.classList.remove("is-selected"));
           button.classList.add("is-selected");
           selections[key] = card.id;
           confirm.disabled = !selections.opponentCardId || !selections.actorCardId;
@@ -469,7 +577,9 @@ export class GameUI {
     );
     this.els["select-card-overlay"].hidden = false;
     await new Promise((resolve) => confirm.addEventListener("click", resolve, { once: true }));
-    list.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+    list.querySelectorAll("button").forEach((button) => {
+      button.disabled = true;
+    });
     await wait(650);
     this.els["select-card-overlay"].hidden = true;
     list.classList.remove("is-swap-picker");
@@ -483,7 +593,8 @@ export class GameUI {
     this.els["standing-kicker"].textContent = `GAME ${result.round} / ${MATCH_ROUNDS} 終了`;
     this.els["standing-player-label"].textContent = labels.player;
     this.els["standing-dealer-label"].textContent = labels.dealer;
-    const balanceLabel = (actor) => `${result.chips[actor]}${result.debts?.[actor] ? `（借金${result.debts[actor]}）` : ""}`;
+    const balanceLabel = (actor) =>
+      `${result.chips[actor]}${result.debts?.[actor] ? `（借金${result.debts[actor]}）` : ""}`;
     this.els["standing-player"].textContent = balanceLabel("player");
     this.els["standing-dealer"].textContent = balanceLabel("dealer");
     const setDelta = (node, value) => {
@@ -503,11 +614,24 @@ export class GameUI {
     const duo = this.isVersus(game);
     const labels = this.seatLabels(game);
     overlay.className = `result-overlay is-${mood} is-final`;
-    const title = game.mode === "online"
-      ? (mood === "win" ? "YOU WIN" : mood === "loss" ? `${labels.dealer} WIN` : "PUSH")
-      : duo
-        ? (mood === "win" ? "PLAYER 1 WIN" : mood === "loss" ? "PLAYER 2 WIN" : "PUSH")
-      : (mood === "win" ? "You Win!" : mood === "loss" ? "You lose" : "PUSH");
+    const title =
+      game.mode === "online"
+        ? mood === "win"
+          ? "YOU WIN"
+          : mood === "loss"
+            ? `${labels.dealer} WIN`
+            : "PUSH"
+        : duo
+          ? mood === "win"
+            ? "PLAYER 1 WIN"
+            : mood === "loss"
+              ? "PLAYER 2 WIN"
+              : "PUSH"
+          : mood === "win"
+            ? "You Win!"
+            : mood === "loss"
+              ? "You lose"
+              : "PUSH";
     this.els["result-kicker"].textContent = `FINAL • ${MATCH_ROUNDS} GAMES`;
     this.els["result-title"].textContent = title;
     const debt = result.debts ?? { player: 0, dealer: 0 };
@@ -540,39 +664,51 @@ export class GameUI {
     this.els["bet-rival-chips"].textContent = game.chips[opponent];
     const list = this.els["bet-chip-picker"];
     const render = () => {
-      const groups = Object.entries(CHIP_TYPES).filter(([type]) => type !== "white" || (game.inventories[actor].white ?? 0) > 0).map(([type, chipType]) => {
-        const group = document.createElement("section");
-        group.className = "chip-picker-group";
-        const label = document.createElement("span");
-        label.className = "chip-picker-label";
-        label.innerHTML = `<strong>${chipType.value}</strong><small>${chipType.label} × ${game.inventories[actor][type]}</small>`;
-        const row = document.createElement("div");
-        row.className = "chip-token-row";
-        for (let index = 0; index < game.inventories[actor][type]; index += 1) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = `bet-chip-token ${index < selected[type] ? "is-selected" : ""}`;
-          button.setAttribute("aria-label", `${chipType.value}チップ ${index < selected[type] ? "選択済み" : "未選択"}`);
-          button.append(this.createChip(type));
-          button.addEventListener("click", () => {
-            selected[type] = index < selected[type] ? Math.max(0, selected[type] - 1) : Math.min(game.inventories[actor][type], selected[type] + 1);
-            render();
-          });
-          row.append(button);
-        }
-        group.append(label, row);
-        return group;
-      });
+      const groups = Object.entries(CHIP_TYPES)
+        .filter(([type]) => type !== "white" || (game.inventories[actor].white ?? 0) > 0)
+        .map(([type, chipType]) => {
+          const group = document.createElement("section");
+          group.className = "chip-picker-group";
+          const label = document.createElement("span");
+          label.className = "chip-picker-label";
+          label.innerHTML = `<strong>${chipType.value}</strong><small>${chipType.label} × ${game.inventories[actor][type]}</small>`;
+          const row = document.createElement("div");
+          row.className = "chip-token-row";
+          for (let index = 0; index < game.inventories[actor][type]; index += 1) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = `bet-chip-token ${index < selected[type] ? "is-selected" : ""}`;
+            button.setAttribute(
+              "aria-label",
+              `${chipType.value}チップ ${index < selected[type] ? "選択済み" : "未選択"}`,
+            );
+            button.append(this.createChip(type));
+            button.addEventListener("click", () => {
+              selected[type] =
+                index < selected[type]
+                  ? Math.max(0, selected[type] - 1)
+                  : Math.min(game.inventories[actor][type], selected[type] + 1);
+              render();
+            });
+            row.append(button);
+          }
+          group.append(label, row);
+          return group;
+        });
       list.replaceChildren(...groups);
       const amount = inventoryValue(selected);
       this.els["bet-amount"].textContent = `${amount} CHIP`;
-      this.els["bet-total-note"].textContent = amount ? `勝利時は${Math.round(amount * game.basePayoutMultiplier())}分が戻ります` : "1枚以上選んでください";
+      this.els["bet-total-note"].textContent = amount
+        ? `勝利時は${Math.round(amount * game.basePayoutMultiplier())}分が戻ります`
+        : "1枚以上選んでください";
       this.els["bet-confirm"].disabled = amount <= 0;
       this.renderChipCollection(this.els["selected-chip-stack"], selected);
     };
     render();
     overlay.hidden = false;
-    await new Promise((resolve) => this.els["bet-confirm"].addEventListener("click", resolve, { once: true }));
+    await new Promise((resolve) =>
+      this.els["bet-confirm"].addEventListener("click", resolve, { once: true }),
+    );
     overlay.hidden = true;
     return { chips: selected };
   }
@@ -622,6 +758,9 @@ export class GameUI {
   }
 
   populateSkillGuide() {
-    this.els["skill-guide"].innerHTML = SPECIALS.map((skill) => `<article class="is-rank-${skill.rank.toLowerCase()}"><b>${skill.icon}</b><strong>${skill.name}<i>${skill.rank}</i></strong><span>${skill.description}</span></article>`).join("");
+    this.els["skill-guide"].innerHTML = SPECIALS.map(
+      (skill) =>
+        `<article class="is-rank-${skill.rank.toLowerCase()}"><b>${skill.icon}</b><strong>${skill.name}<i>${skill.rank}</i></strong><span>${skill.description}</span></article>`,
+    ).join("");
   }
 }

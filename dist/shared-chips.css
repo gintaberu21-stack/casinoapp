@@ -1,0 +1,112 @@
+/* CAJINODUEL chip palette and striped rim, shared across games. */
+.casino-chip {
+  --chip: #e32636;
+  --chip-dark: #85111d;
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 16px;
+  border: 2px solid #f7f1df;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 8deg,
+    #f8f4e8 0 9deg,
+    var(--chip) 9deg 35deg,
+    #f8f4e8 35deg 45deg
+  );
+  box-shadow:
+    0 3px 0 var(--chip-dark),
+    0 5px 5px #0008;
+}
+.casino-chip:after {
+  content: "";
+  position: absolute;
+  inset: 3px 8px;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: var(--chip);
+  box-shadow: inset 0 0 0 2px #ffffff40;
+}
+.casino-chip.is-red,
+[data-chip-color="red"] {
+  --chip: #e32636;
+  --chip-dark: #85111d;
+}
+.casino-chip.is-blue,
+[data-chip-color="blue"] {
+  --chip: #1260c5;
+  --chip-dark: #083578;
+}
+.casino-chip.is-black,
+[data-chip-color="black"] {
+  --chip: #27292e;
+  --chip-dark: #08090b;
+}
+.casino-chip.is-white,
+[data-chip-color="white"] {
+  --chip: #e7e4da;
+  --chip-dark: #89867d;
+}
+.chip-choices button[data-chip-color],
+.placed-chip[data-chip-color]:not([hidden]) {
+  background: repeating-conic-gradient(
+    from 8deg,
+    #f8f4e8 0 9deg,
+    var(--chip) 9deg 35deg,
+    #f8f4e8 35deg 45deg
+  );
+  border: 2px solid #f7f1df;
+  border-radius: 50%;
+  box-shadow:
+    0 3px 0 var(--chip-dark),
+    0 5px 5px #0008;
+  color: #fff;
+  text-shadow:
+    0 1px 3px #000,
+    0 0 3px #000;
+  font-weight: 800;
+}
+.chip-choices button[data-chip-color] {
+  width: 58px;
+  height: 32px;
+  font-size: 12px;
+}
+.placed-chip[data-chip-color]:not([hidden]) {
+  height: 22px;
+  min-width: 32px;
+  width: auto;
+  padding-inline: 5px;
+  font-size: 10px;
+}
+.slot-chip-rack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  min-height: 22px;
+}
+.slot-chip-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font:
+    11px system-ui,
+    sans-serif;
+  color: #d9c29b;
+}
+.slot-chip-rack .casino-chip {
+  flex-shrink: 0;
+}
+.slot-chip-rack .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
