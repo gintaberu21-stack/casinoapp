@@ -27,7 +27,14 @@ function requireAccount() {
 function render() {
   const account = service.account;
   if (!account) return;
-  wallet.textContent = `${account.name}  ${Number(account.chips ?? 0).toLocaleString("ja-JP")} CHIP`;
+  const name = document.createElement("span");
+  name.className = "lobby-wallet-name";
+  name.textContent = account.name;
+  const chips = document.createElement("span");
+  chips.className = "lobby-wallet-chips";
+  chips.textContent = `${Number(account.chips ?? 0).toLocaleString("ja-JP")} CHIP`;
+  wallet.replaceChildren(name, chips);
+  wallet.title = `${account.name} / ${chips.textContent}`;
 }
 dialog.addEventListener("cancel", (event) => event.preventDefault());
 service.addEventListener("account", render);
