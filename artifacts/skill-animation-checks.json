@@ -1,0 +1,66 @@
+[
+  {
+    "height": 316.03125,
+    "name": "SHUFFLE",
+    "opacity": "1",
+    "shown": true,
+    "title": "相手の手札をすべて公開し、自分と相手から1枚ずつ選んで交換する。",
+    "width": 292.5
+  },
+  {
+    "height": 296.03125,
+    "name": "SELECT REVERSE",
+    "opacity": "1",
+    "shown": true,
+    "title": "相手の手札を公開し、選んだ1枚を捨てる。",
+    "width": 292.5
+  },
+  {
+    "height": 316.03125,
+    "name": "TRIPLE WIN",
+    "opacity": "1",
+    "shown": true,
+    "title": "このラウンドで勝ったときの獲得分を3倍にする。",
+    "width": 292.5
+  },
+  {
+    "height": 316.03125,
+    "name": "DOUBLE WIN",
+    "opacity": "1",
+    "shown": true,
+    "title": "このラウンドで勝ったときの獲得分を2倍にする。",
+    "width": 292.5
+  },
+  {
+    "height": 282.03125,
+    "name": "EXTRA DRAW",
+    "opacity": "1",
+    "shown": true,
+    "title": "カードを1枚引いた後、自分の手札から1枚選んで捨てる。",
+    "width": 292.5
+  },
+  {
+    "height": 316.03125,
+    "name": "LOCK",
+    "opacity": "1",
+    "shown": true,
+    "title": "相手の次のターンだけ必殺技を封印する。",
+    "width": 292.5
+  },
+  {
+    "height": 316.03125,
+    "name": "FUTURE SIGHT",
+    "opacity": "1",
+    "shown": true,
+    "title": "次に自分が引くカードを先に確認できる。",
+    "width": 292.5
+  },
+  {
+    "height": 316.03125,
+    "name": "ARCANA EYE",
+    "opacity": "1",
+    "shown": true,
+    "title": "相手が持っている必殺技カードをすべて見る。",
+    "width": 292.5
+  }
+]

@@ -1,0 +1,132 @@
+[
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": false,
+    "size": [
+      375,
+      667
+    ],
+    "skillsAboveDock": true,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": false,
+    "size": [
+      393,
+      852
+    ],
+    "skillsAboveDock": true,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": false,
+    "size": [
+      402,
+      874
+    ],
+    "skillsAboveDock": true,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": false,
+    "size": [
+      430,
+      932
+    ],
+    "skillsAboveDock": true,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": false,
+    "size": [
+      440,
+      956
+    ],
+    "skillsAboveDock": true,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": true,
+    "size": [
+      375,
+      567
+    ],
+    "skillsAboveDock": false,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": true,
+    "size": [
+      320,
+      568
+    ],
+    "skillsAboveDock": false,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": true,
+    "size": [
+      667,
+      375
+    ],
+    "skillsAboveDock": false,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": false,
+    "size": [
+      1024,
+      768
+    ],
+    "skillsAboveDock": true,
+    "walletFits": true
+  },
+  {
+    "dealerHeadingFits": true,
+    "dockVisible": true,
+    "handFits": true,
+    "horizontalOverflow": false,
+    "scrollable": false,
+    "size": [
+      1440,
+      900
+    ],
+    "skillsAboveDock": true,
+    "walletFits": true
+  }
+]
