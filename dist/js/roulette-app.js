@@ -116,12 +116,6 @@ function addBetButton(parent, id, label, className = "") {
 }
 function placeBet(id) {
   if (busy) return;
-  if (id.startsWith("n:") && bets[id]) {
-    delete bets[id];
-    moves = moves.filter((move) => move.id !== id);
-    render();
-    return;
-  }
   if (totalBet() + stake > balance) {
     $("result").textContent =
       "残りチップが不足しています。チップを変更するか、ベットを戻してください。";
