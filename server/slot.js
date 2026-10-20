@@ -71,9 +71,17 @@ export async function slotAction(store, account, action, body = {}, now = Date.n
       throw new Error("スピン情報が一致しません");
     round = structuredClone(round);
     if (action === "stop" && ![0, 1, 2].includes(body.reel)) throw new Error("リールが無効です");
+    if (
+      action === "stop" &&
+      body.index !== undefined &&
+      (!Number.isInteger(body.index) || body.index < 0 || body.index >= 30)
+    ) throw new Error("停止位置が無効です");
     const reels = action === "state" ? [0, 1, 2] : [body.reel];
     for (const reel of reels)
-      if (round.indices[reel] === null) round.indices[reel] = stoppedIndex(round, reel, now);
+      if (round.indices[reel] === null)
+        round.indices[reel] = action === "stop" && body.index !== undefined
+          ? body.index
+          : stoppedIndex(round, reel, now);
     if (!round.done && round.indices.every((i) => i !== null)) {
       round.done = true;
       round.win = slotPayout(round.indices, round.bet);

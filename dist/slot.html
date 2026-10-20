@@ -613,6 +613,7 @@
         roundId = null,
         serverResult = null;
       const stopPending = [false, false, false];
+      let stopQueue = Promise.resolve();
       const busy = () => pending || running.some(Boolean);
       const fmt = (n) => n.toLocaleString("ja-JP");
       function renderBetChips() {
@@ -658,7 +659,9 @@
               (b.disabled =
                 !running[Number(b.dataset.reel)] || stopPending[Number(b.dataset.reel)]),
           );
-        indices.forEach((v, r) => $("reel" + r).classList.toggle("spinning", running[r]));
+        indices.forEach((v, r) =>
+          $("reel" + r).classList.toggle("spinning", running[r] && !stopPending[r]),
+        );
       }
       function recordSlotRound(round) {
         import("./js/game-records.js").then(({ recordGame }) =>
@@ -771,7 +774,8 @@
         if (!running[r] || brakes[r] || stopPending[r]) return;
         stopPending[r] = true;
         // Freeze on pointer-down, before waiting for the authoritative result.
-        const from = Math.floor(positions[r]);
+        const from = Math.round(positions[r]);
+        const index = ((from + 1) % strips[r].length + strips[r].length) % strips[r].length;
         positions[r] = from;
         brakes[r] = {
           from,
@@ -784,7 +788,9 @@
         $("reel" + r).classList.remove("spinning");
         render();
         try {
-          const data = await api("stop", { roundId, reel: r });
+          const request = stopQueue.then(() => api("stop", { roundId, reel: r, index }));
+          stopQueue = request.catch(() => {});
+          const data = await request;
           balance = data.balance;
           serverResult = data.round;
           indices[r] = data.round.indices[r];
