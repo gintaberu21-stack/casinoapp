@@ -1,3 +1,4 @@
+import { websocketUrl, waitForBackend } from "./backend.js";
 const ACCOUNT_TOKEN_KEY = "casinoDuel.accountToken";
 const ACCOUNT_PROFILE_KEY = "casinoDuel.accountProfile";
 const RETRY_MS = 2000;
@@ -30,8 +31,7 @@ export class MatchService extends EventTarget {
   }
 
   endpoint() {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}/ws`;
+    return websocketUrl();
   }
 
   /** メイン画面に入った時点で呼ぶ。IDはサーバーが連番で配る。 */
@@ -41,7 +41,9 @@ export class MatchService extends EventTarget {
     return this.id;
   }
 
-  connect() {
+  async connect() {
+    await waitForBackend();
+    if (this.socket) return;
     let socket;
     try {
       socket = new WebSocket(this.endpoint());

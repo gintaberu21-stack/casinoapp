@@ -30,6 +30,19 @@ console.log(
 );
 
 const app = express();
+const frontendOrigins = new Set((process.env.FRONTEND_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean));
+app.use((request, response, next) => {
+  const origin = request.get("origin");
+  if (origin) response.vary("Origin");
+  if (frontendOrigins.has(origin)) {
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (request.method === "OPTIONS") return response.sendStatus(204);
+  }
+  if (request.method === "OPTIONS") return response.sendStatus(403);
+  next();
+});
 app.get("/healthz", (_request, response) =>
   response.json({ ok: true, storage: store.usesMongo ? "mongodb" : "memory" }),
 );

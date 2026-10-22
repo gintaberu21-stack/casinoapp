@@ -14,7 +14,8 @@
     "check": "node --check dist/js/app.js && node --check server/index.js",
     "test:integration": "node test/integration.mjs",
     "format": "prettier --write dist/**/*.{html,css,js} server/**/*.js",
-    "format:check": "prettier --check dist/**/*.{html,css,js} server/**/*.js"
+    "format:check": "prettier --check dist/**/*.{html,css,js} server/**/*.js",
+    "build:static": "node scripts/build-static.mjs"
   },
   "dependencies": {
     "express": "^4.21.2",

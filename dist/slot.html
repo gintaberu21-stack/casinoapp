@@ -557,7 +557,8 @@
         CHIP。開始時にベットを引き、停止後に配当を加えます。30秒後には自動停止します。</p
       ><p>ブラックジャックと共通のチップを使用します。</p><button id="close">閉じる</button></dialog
     >
-    <script>
+    <script type="module">
+      import { apiFetch } from "./js/backend.js";
       "use strict";
       const symbolOrder = [
         "seven",
@@ -737,7 +738,7 @@
         if (location.protocol === "file:") throw Error("サーバーのURLから開いてください");
         const token = localStorage.getItem("casinoDuel.accountToken");
         if (!token) throw Error("既存のアカウントでログインしてください");
-        const response = await fetch("/api/slot/" + action, {
+        const response = await apiFetch("/api/slot/" + action, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
           body: JSON.stringify(body),

@@ -15,3 +15,17 @@ services:
         value: casino_duel
       - key: NODE_VERSION
         value: "22"
+      - key: FRONTEND_ORIGINS
+        sync: false
+  - type: web
+    name: royal-play
+    runtime: static
+    buildCommand: npm run build:static
+    staticPublishPath: ./static-site
+    envVars:
+      - key: BACKEND_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /
+        destination: /rooms.html

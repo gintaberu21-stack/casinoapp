@@ -1,3 +1,4 @@
+import { apiFetch } from "./backend.js";
 import {
   betDefinition,
   numberColor,
@@ -43,7 +44,7 @@ let balance = 0,
 async function api(action, body = {}) {
   const token = localStorage.getItem("casinoDuel.accountToken");
   if (!token) throw Error("ホーム画面でアカウントを作成してください");
-  const response = await fetch("/api/roulette/" + action, {
+  const response = await apiFetch("/api/roulette/" + action, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
     body: JSON.stringify(body),
