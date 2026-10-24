@@ -1,4 +1,5 @@
 import { MatchService } from "./match.js";
+import { waitForBackend } from "./backend.js";
 
 const service = new MatchService();
 const dialog = document.getElementById("lobby-account");
@@ -86,6 +87,7 @@ document.querySelectorAll(".blackjack-entry,.roulette-entry").forEach((link) => 
     }
   });
 });
+await waitForBackend();
 if (!service.token) requireAccount();
 else {
   render();
