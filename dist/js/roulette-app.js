@@ -1,4 +1,5 @@
 import { apiFetch } from "./backend.js";
+import { RouletteSpinSound } from "./roulette-sound.js";
 import {
   betDefinition,
   numberColor,
@@ -12,6 +13,7 @@ import { ROULETTE_HELP } from "./roulette-help.js?v=help-cleanup-5";
 import { CHIP_TYPES } from "./game.js";
 import { recordGame } from "./game-records.js";
 const $ = (id) => document.getElementById(id);
+const spinSound = new RouletteSpinSound();
 const rouletteChipTypes = ["red", "blue", "black"];
 const chipColorFor = (id) => {
   const lastStake = moves.findLast((move) => move.id === id)?.stake ?? 100;
@@ -290,6 +292,7 @@ $("clear").addEventListener("click", () => {
 });
 $("spin").addEventListener("click", async () => {
   if (busy || !connected || !totalBet()) return;
+  spinSound.unlock();
   displayedBalance = balance - totalBet();
   busy = true;
   render();
@@ -333,6 +336,7 @@ $("spin").addEventListener("click", async () => {
     ballStart = ballAngle;
   await new Promise((resolve) => {
     const started = performance.now();
+    void spinSound.play(ROLL_DURATION, started).catch(() => {});
     function frame(now) {
       const progress = Math.min(1, (now - started) / ROLL_DURATION),
         motion = ballRollFrame(progress, wheelStart, ballStart, target);
@@ -345,6 +349,7 @@ $("spin").addEventListener("click", async () => {
     requestAnimationFrame(frame);
   });
   rotation = target.wheelEnd;
+  spinSound.stop();
   ballAngle = target.ballEnd;
   recordGame("roulette", result.delta, result.id, result.payout);
   $("ball-orbit").classList.add("is-settled");
