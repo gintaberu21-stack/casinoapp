@@ -5,7 +5,7 @@ const opponentOf = (actor) => (actor === "player" ? "dealer" : "player");
 
 /** 1試合のラウンド数。 */
 export const MATCH_ROUNDS = 3;
-export const DIFFICULTY_PAYOUTS = { easy: 2, normal: 2, hard: 3 };
+export const DIFFICULTY_PAYOUTS = { easy: 2, normal: 3, hard: 4 };
 /** 開始時の持ちチップ。 */
 export const CHIP_TYPES = {
   red: { value: 100, label: "RED" },
