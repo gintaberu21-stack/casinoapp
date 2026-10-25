@@ -595,3 +595,47 @@
     max-width: 30vw;
   }
 }
+
+/* Keep skills outside the growing hand area, immediately above HIT / STAND. */
+.game-screen.is-active,
+.game-screen.is-active:has(.opponent-arcana.is-revealed) {
+  height: calc(100svh - var(--footer-height, 0px) - env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--footer-height, 0px) - env(safe-area-inset-bottom));
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+.game-screen .table-felt {
+  grid-template-rows: minmax(min-content, 1fr) auto minmax(min-content, 1.1fr);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+.game-screen > .special-tray {
+  position: relative;
+  min-width: 0;
+  max-height: 35dvh;
+  overflow-y: auto;
+  padding: 8px max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left)) !important;
+  background: #13070a;
+}
+@media (orientation: landscape) and (max-height: 600px) and (min-width: 600px) {
+  .game-screen .table-felt {
+    grid-template-rows: auto auto;
+    grid-template-areas: "dealer player" "center center";
+  }
+  .game-screen > .special-tray {
+    grid-area: auto;
+  }
+}
+
+.game-screen.is-active .action-dock,
+.game-screen.is-active:has(.opponent-arcana.is-revealed) .action-dock {
+  position: relative;
+  bottom: auto;
+}
+
+#game-screen.is-active {
+  align-self: start;
+  min-height: 0 !important;
+}
