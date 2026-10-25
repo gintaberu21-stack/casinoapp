@@ -559,6 +559,8 @@
     >
     <script type="module">
       import { apiFetch } from "./js/backend.js";
+      import { SlotSound } from "./js/slot-sound.js";
+      const slotSound = new SlotSound();
       "use strict";
       const symbolOrder = [
         "seven",
@@ -676,6 +678,7 @@
           clearTimeout(timeout);
           if (serverResult?.done) {
             win = serverResult.win;
+            slotSound.win(win, serverResult.bet);
             recordSlotRound(serverResult);
             $("status").textContent = win ? "WIN! + " + fmt(win) + " CHIP" : "TRY AGAIN";
             $("machine").classList.toggle("hit", win > 0);
@@ -773,6 +776,7 @@
       }
       async function stop(r) {
         if (!running[r] || brakes[r] || stopPending[r]) return;
+        slotSound.stopReel(r);
         stopPending[r] = true;
         // Freeze on pointer-down, before waiting for the authoritative result.
         const from = Math.round(positions[r]);
@@ -800,6 +804,7 @@
           paint(r);
           settleReel(r);
         } catch (error) {
+          slotSound.stopAll();
           connected = false;
           $("status").textContent = error.message;
           $("retry").hidden = false;
@@ -810,6 +815,7 @@
       }
       $("spin").addEventListener("click", async () => {
         if (!connected || busy() || balance < bets[betIndex]) return;
+        slotSound.unlock();
         pending = true;
         render();
         try {
@@ -822,6 +828,7 @@
           indices = data.round.initial;
           buildReels();
           running = [true, true, true];
+          slotSound.start();
           brakes.fill(null);
           stopPending.fill(false);
           $("machine").classList.remove("hit");
@@ -839,6 +846,7 @@
         }
       });
       document.querySelectorAll("[data-reel]").forEach((button) => {
+        button.dataset.sound = "custom";
         button.style.touchAction = "manipulation";
         button.addEventListener("pointerdown", (event) => {
           if (event.button === 0 && event.isPrimary) stop(Number(button.dataset.reel));
@@ -868,6 +876,7 @@
         }
       };
       $("retry").onclick = async () => {
+        slotSound.stopAll();
         cancelAnimationFrame(tick);
         clearTimeout(timeout);
         running = [false, false, false];

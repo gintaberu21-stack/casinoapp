@@ -17,6 +17,7 @@ document.addEventListener(
   "click",
   (event) => {
     const button = event.target.closest?.("button");
+    if (button?.dataset.sound === "custom") return;
     if (button && !button.matches(":disabled") && button.getAttribute("aria-disabled") !== "true") {
       if (button.dataset.cue) board.play(button.dataset.cue);
       else void playSample();
