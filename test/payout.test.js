@@ -52,7 +52,7 @@ test("repayment uses the extra profit without consuming the returned original be
   assert.equal(game.debts.player, 0);
 });
 
-for (const [difficulty, factor] of [["easy", 1.3], ["normal", 2], ["hard", 3]]) {
+for (const [difficulty, factor] of [["easy", 2], ["normal", 2], ["hard", 3]]) {
   for (const skills of [[], ["double"], ["triple"], ["double", "triple"]]) {
     test(`${difficulty} pays the stake times ${factor} with ${skills.join("+") || "no skills"}`, () => {
       const game = new CasinoDuelGame();
@@ -74,17 +74,12 @@ for (const [difficulty, factor] of [["easy", 1.3], ["normal", 2], ["hard", 3]]) 
   }
 }
 
-test("fractional payouts remain available to bet and survive an online snapshot", () => {
-  const game = setup("player", []);
-  game.difficulty = "easy";
-  const result = game.settle();
-  assert.equal(inventoryValue(result.returns.player), 650);
-  assert.equal(game.inventories.player.white, 50);
-  const guest = new CasinoDuelGame();
-  guest.restore(game.snapshot());
-  assert.equal(guest.inventories.player.white, 50);
-  assert.equal(game.setBet("player", { chips: { white: 30 } }).amount, 30);
-  assert.equal(game.inventories.player.white, 20);
+test("legacy fractional balances round up and cannot be bet as white chips", () => {
+  const game = new CasinoDuelGame();
+  game.startMatch({ player: { inventory: { red: 0, blue: 0, black: 0, white: 14 } } });
+  assert.equal(game.chips.player, 100);
+  assert.equal(game.inventories.player.white, undefined);
+  assert.equal(game.setBet("player", { chips: { white: 14 } }).amount, 100);
 });
 
 test("two-player games keep the normal 2x payout independently of CPU difficulty", () => {

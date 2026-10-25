@@ -1,3 +1,4 @@
+import { roundChips, valueToInventory } from "../dist/js/game.js";
 const COUNTER_ID = "playerId";
 
 /**
@@ -43,17 +44,30 @@ export class Store {
       .updateOne({ _id: COUNTER_ID }, { $set: { value: 0 } }, { upsert: true });
   }
 
+  async normalizeAccount(account) {
+    if (!account) return null;
+    const chips = roundChips(account.chips);
+    const debt = roundChips(account.debt);
+    if (chips !== account.chips || debt !== account.debt || account.inventory?.white) {
+      const changes = { chips, debt, inventory: valueToInventory(chips) };
+      await this.updateAccount(account.playerId, changes);
+      return { ...account, ...changes };
+    }
+    return account;
+  }
+
   async findAccount(accountKey) {
-    if (!this.usesMongo) return this.memory.accounts.get(accountKey) ?? null;
-    return this.database.collection("accounts").findOne({ accountKey }, { projection: { _id: 0 } });
+    const account = !this.usesMongo
+      ? this.memory.accounts.get(accountKey) ?? null
+      : await this.database.collection("accounts").findOne({ accountKey }, { projection: { _id: 0 } });
+    return this.normalizeAccount(account);
   }
 
   async findAccountById(playerId) {
-    if (!this.usesMongo)
-      return (
-        [...this.memory.accounts.values()].find((account) => account.playerId === playerId) ?? null
-      );
-    return this.database.collection("accounts").findOne({ playerId }, { projection: { _id: 0 } });
+    const account = !this.usesMongo
+      ? [...this.memory.accounts.values()].find((account) => account.playerId === playerId) ?? null
+      : await this.database.collection("accounts").findOne({ playerId }, { projection: { _id: 0 } });
+    return this.normalizeAccount(account);
   }
 
   async createAccount(accountKey, nickname) {
@@ -79,8 +93,13 @@ export class Store {
 
   async updateAccount(playerId, changes) {
     const safe = { ...changes, updatedAt: new Date() };
+    if (Object.hasOwn(changes, "chips")) {
+      safe.chips = roundChips(changes.chips);
+      if (safe.chips !== changes.chips) safe.inventory = valueToInventory(safe.chips);
+    }
+    if (Object.hasOwn(changes, "debt")) safe.debt = roundChips(changes.debt);
     if (!this.usesMongo) {
-      const account = await this.findAccountById(playerId);
+      const account = [...this.memory.accounts.values()].find((entry) => entry.playerId === playerId);
       if (account) Object.assign(account, safe);
       return account ? { ...account } : null;
     }

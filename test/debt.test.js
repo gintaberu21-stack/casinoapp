@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { CasinoDuelGame, inventoryValue, valueToInventory } from "../dist/js/game.js";
 import { getSpecial } from "../dist/js/skills.js";
 
-for (const [difficulty, factor] of [["easy", 1.3], ["normal", 2], ["hard", 3]]) {
+for (const [difficulty, factor] of [["easy", 2], ["normal", 2], ["hard", 3]]) {
   for (const actor of ["player", "dealer"]) {
     test(`${difficulty} ${actor}: repeated loans distribute red chips and preserve net worth`, () => {
       const game = new CasinoDuelGame();

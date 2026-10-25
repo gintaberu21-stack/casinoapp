@@ -5,7 +5,7 @@ const opponentOf = (actor) => (actor === "player" ? "dealer" : "player");
 
 /** 1試合のラウンド数。 */
 export const MATCH_ROUNDS = 3;
-export const DIFFICULTY_PAYOUTS = { easy: 1.3, normal: 2, hard: 3 };
+export const DIFFICULTY_PAYOUTS = { easy: 2, normal: 2, hard: 3 };
 /** 開始時の持ちチップ。 */
 export const CHIP_TYPES = {
   red: { value: 100, label: "RED" },
@@ -29,6 +29,7 @@ export const valueToInventory = (amount) => {
   if (remaining > 0) inventory.white = remaining;
   return inventory;
 };
+export const roundChips = (amount) => Math.ceil(Math.max(0, Number(amount) || 0) / 100) * 100;
 export const STARTING_CHIPS = inventoryValue(STARTING_INVENTORY);
 /** ベットの最小単位。 */
 export const BET_STEP = 100;
@@ -149,7 +150,7 @@ export class CasinoDuelGame {
         : STARTING_CHIPS,
       debt: Math.max(0, Math.round(Number(profiles[actor]?.debt) || 0)),
       inventory: profiles[actor]?.inventory
-        ? structuredClone(profiles[actor].inventory)
+        ? valueToInventory(roundChips(inventoryValue(profiles[actor].inventory)))
         : { ...STARTING_INVENTORY },
     });
     const player = profileOf("player", "YOU");
@@ -174,7 +175,7 @@ export class CasinoDuelGame {
   /** 選んだ現物チップを手元からテーブルへ移す。 */
   setBet(actor, selection = {}) {
     const selected = { red: 0, blue: 0, black: 0 };
-    if ((this.inventories[actor].white ?? 0) > 0) selected.white = 0;
+
     Object.keys(selected).forEach((type) => {
       selected[type] = Math.max(
         0,
