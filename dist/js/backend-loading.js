@@ -12,9 +12,11 @@ export function showBackendLoading() {
     .backend-loading p { margin:0; line-height:1.8; font-size:14px; max-width:30em; }
     .backend-loading small { color:#c9acae; font-size:12px; }
     .backend-loading-spinner { width:42px; height:42px; border:2px solid #d4af5733;
-      border-top-color:#f3d58a; border-radius:50%; animation:backend-spin 1s linear infinite; }
+      border-top-color:#f3d58a; border-radius:50%; animation:backend-spin 1s linear infinite !important; }
     @keyframes backend-spin { to { transform:rotate(360deg); } }
-    @media(prefers-reduced-motion:reduce) { .backend-loading-spinner { animation:none; } }
+    @media(prefers-reduced-motion:reduce) {
+      .backend-loading .backend-loading-spinner { animation-duration:2.4s !important; }
+    }
   `;
   document.head.append(style);
   const overlay = document.createElement("dialog");
