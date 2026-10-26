@@ -3,6 +3,7 @@ import { MATCH_ROUNDS, CHIP_TYPES, inventoryValue } from "./game.js";
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const opponentOf = (actor) => (actor === "player" ? "dealer" : "player");
+const MAX_VISIBLE_CHIPS_PER_STACK = 10;
 
 export class GameUI {
   constructor() {
@@ -73,8 +74,9 @@ export class GameUI {
     stack.className = "chip-stack";
     stack.dataset.type = type;
     stack.title = `${CHIP_TYPES[type].label} ${CHIP_TYPES[type].value} × ${count}`;
-    stack.style.height = `${Math.max(18, 15 + Math.max(0, count - 1) * 4)}px`;
-    for (let index = 0; index < count; index += 1) {
+    const visibleCount = Math.min(count, MAX_VISIBLE_CHIPS_PER_STACK);
+    stack.style.height = `${Math.max(18, 15 + Math.max(0, visibleCount - 1) * 4)}px`;
+    for (let index = 0; index < visibleCount; index += 1) {
       const chip = this.createChip(type);
       chip.style.setProperty("--chip-y", `${index * 4}px`);
       stack.append(chip);
