@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initil-scale=1">
+<title>ランキング・レイアウトプレビュー</title><link rel="stylesheet" href="./rooms.css">
+<style>
+body{padding:20px 0 40px}.layout-preview-tools{max-width:720px;margin:0 auto 16px;padding:0 14px;font:13px/1.7 system-ui,sans-serif;color:#e3c98f}.layout-preview-tools button{padding:7px 15px;border:1px solid #b18c47;border-radius:8px;background:#31131d;color:#ffe4ab;cursor:pointer;margin-right:8px}.layout-preview-tools p{margin:8px 0}.rankings-dialog[open]{position:relative;inset:auto;margin:0 auto;max-height:none;width:min(var(--preview-width,720px),calc(100% - 24px))}.rankings-heading h2{font-size:clamp(18px,4vw,29px)}
+</style></head><body>
+<div class="layout-preview-tools"><p>レイアウト確認用 · 名前とチップはすべてサンプルです</p><button id="wide">PC幅</button><button id="phone">スマホ幅</button></div>
+<dialog open class="rankings-dialog" aria-labelledby="preview-ranking-title">
+<header class="rankings-heading"><div><p>ROYAL PLAY / HALL OF FAME</p><h2 id="preview-ranking-title">チップランキング</h2></div><button class="rankings-close" type="button" aria-label="ホームへ戻る" onclick="location.href='./rooms.html'">×</button></header>
+<p class="rankings-description">現在の所持チップ数でランキング。同じ端末での二人対戦は対象外です。</p>
+<div class="rankings-toolbar"><p>全8人 · 表示確認用データ</p><button id="rankings-refresh" type="button" disabled>更新</button></div>
+<div id="sample-ranking"></div>
+<p class="rankings-note">現在アカウントに保存されている所持チップ数で順位を表示します。同額はID順に表示します。</p>
+</dialog>
+<script type="module">
+import { renderRankings } from "./js/rankings.js";
+const players = [
+{rank:1,playerId:12,name:"ロイヤルエース",chips:158400},
+{rank:2,playerId:8,name:"そる",chips:94600},
+{rank:3,playerId:21,name:"GINTA",chips:72800},
+{rank:4,playerId:4,name:"ブラックジャック好き",chips:56000},
+{rank:5,playerId:35,name:"PLAYER 35",chips:28400},
+{rank:6,playerId:42,name:"ROYAL PLAY",chips:12600},
+{rank:7,playerId:51,name:"ラッキーセブン",chips:6800},
+{rank:8,playerId:60,name:"ビギナー",chips:0}
+];
+renderRankings(document.getElementById("sample-ranking"),players,35);
+document.getElementById("wide").onclick=()=>document.documentElement.style.setProperty("--preview-width","720px");
+document.getElementById("phone").onclick=()=>document.documentElement.style.setProperty("--preview-width","375px");
+</script></body></html>

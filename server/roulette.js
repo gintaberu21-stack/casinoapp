@@ -8,8 +8,10 @@ export async function rouletteAction(store, account, action, body = {}) {
   if (action !== "spin") throw new Error("操作が無効です");
   if (typeof body.requestId !== "string" || !/^[\w-]{20,80}$/.test(body.requestId))
     throw new Error("スピン情報が無効です");
-  if (account.rouletteRound?.id === body.requestId)
+  if (account.rouletteRound?.id === body.requestId) {
+    await store.recordChipGain(account.playerId, account.rouletteRound.payout, body.requestId, "roulette");
     return { balance: account.chips, name: account.name, result: account.rouletteRound };
+  }
   // Keep a small request ledger so an old retry cannot charge a second wager.
   if (account.rouletteRequests?.includes(body.requestId)) throw new Error("処理済みのスピンです");
   if (account.slotRound && !account.slotRound.done)
@@ -38,5 +40,6 @@ export async function rouletteAction(store, account, action, body = {}) {
     rouletteStats,
     rouletteRequests: [...(account.rouletteRequests ?? []), body.requestId],
   });
+  await store.recordChipGain(account.playerId, result.payout, result.id, "roulette");
   return { balance: result.balance, name: account.name, result };
 }

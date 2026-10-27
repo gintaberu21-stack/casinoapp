@@ -93,5 +93,6 @@ export async function slotAction(store, account, action, body = {}, now = Date.n
       });
     } else account = await store.updateAccount(account.playerId, { slotRound: round });
   }
+  if (round?.done) await store.recordChipGain(account.playerId, round.win, round.id, "slot");
   return { balance: account.chips, name: account.name, round: round ?? null };
 }

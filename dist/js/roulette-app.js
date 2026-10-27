@@ -12,6 +12,7 @@ import { createRouletteWheel } from "./roulette-wheel.js";
 import { ROULETTE_HELP } from "./roulette-help.js?v=help-cleanup-5";
 import { CHIP_TYPES } from "./game.js";
 import { recordGame } from "./game-records.js";
+import { cachedWalletBalance, syncWalletResponse } from "./shared-wallet.js";
 const $ = (id) => document.getElementById(id);
 const spinSound = new RouletteSpinSound();
 const rouletteChipTypes = ["red", "blue", "black"];
@@ -41,7 +42,7 @@ $("help").innerHTML = ROULETTE_HELP;
 $("help").setAttribute("aria-labelledby", "roulette-help-title");
 const pendingKey =
   "casinoDuel.roulettePending." + (localStorage.getItem("casinoDuel.accountToken") ?? "guest");
-let balance = 0,
+let balance = cachedWalletBalance(),
   connected = false;
 async function api(action, body = {}) {
   const token = localStorage.getItem("casinoDuel.accountToken");
@@ -54,6 +55,8 @@ async function api(action, body = {}) {
   if (!response.headers.get("content-type")?.includes("application/json"))
     throw Error("サーバーの更新が必要です");
   const data = await response.json();
+  const sharedBalance = syncWalletResponse(data);
+  if (!response.ok && sharedBalance !== null) { balance = sharedBalance; displayedBalance = balance; }
   if (!response.ok) throw Error(data.error);
   return data;
 }
@@ -217,9 +220,8 @@ function renderInsideChips() {
 }
 new ResizeObserver(renderInsideChips).observe($("number-grid"));
 function render() {
-  $("balance").textContent = (busy ? displayedBalance : balance - totalBet()).toLocaleString(
-    "ja-JP",
-  );
+  const wallet = balance === null ? null : busy ? displayedBalance : balance - totalBet();
+  $("balance").textContent = wallet === null ? "—" : wallet.toLocaleString("ja-JP");
   $("bet-total").textContent = `${totalBet().toLocaleString("ja-JP")} CHIP`;
   const activeDefinitions = Object.keys(bets).map(betDefinition);
   document.querySelectorAll("[data-bet]").forEach((button) => {
@@ -385,7 +387,7 @@ $("spin").addEventListener("click", async () => {
       displayedBalance = Math.round(
         balanceStart + (balance - balanceStart) * (Math.ceil(progress * 18) / 18),
       );
-      $("balance").textContent = displayedBalance.toLocaleString("ja-JP");
+      $("balance").textContent = (displayedBalance === null ? "—" : displayedBalance.toLocaleString("ja-JP"));
       if (progress < 1) requestAnimationFrame(updateBalance);
       else resolve();
     }

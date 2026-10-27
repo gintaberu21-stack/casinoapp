@@ -10,7 +10,7 @@ function gameAt(difficulty, score, player = 20) {
   return game;
 }
 
-for (const [difficulty, threshold] of [["easy", 19], ["normal", 20]]) {
+for (const [difficulty, threshold] of [["normal", 20]]) {
   test(`${difficulty} hits below ${threshold} and stops at or above it`, () => {
     assert.equal(gameAt(difficulty, threshold - 1).dealerShouldHit(), true);
     assert.equal(gameAt(difficulty, threshold).dealerShouldHit(), false);

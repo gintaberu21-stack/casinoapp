@@ -54,7 +54,7 @@
             </div>
           </fieldset>
           <button class="difficulty-preview" id="difficulty-open" type="button"
-            ><span>DEALER</span><strong id="difficulty-label">NORMAL ×3</strong
+            ><span>DEALER</span><strong id="difficulty-label">NORMAL ×2</strong
             ><em>変更</em></button
           >
           <button class="start-button" id="game-start" type="button"
@@ -150,6 +150,8 @@
           <div class="mini-logo game-logo">
             <div class="game-title">
               <span class="game-brand"><b>CASINO</b><i>DUEL</i></span>
+              <span class="game-turn-label" id="game-turn-label" aria-live="polite" hidden></span>
+              <span class="turn-timer" id="turn-timer" role="timer" hidden></span>
             </div>
             <small class="nav-win-payout" id="player-win-payout">勝利時 0</small>
           </div>
@@ -245,12 +247,10 @@
         ><button class="dialog-close" type="button" aria-label="閉じる">×</button
         ><p class="dialog-kicker">SELECT DEALER</p><h2>ディーラーの強さ</h2
         ><div class="difficulty-list"
-          ><button type="button" data-difficulty="easy"
-            ><span>EASY</span><small>勝利時：賭けチップの2倍</small></button
           ><button class="is-selected" type="button" data-difficulty="normal"
-            ><span>NORMAL</span><small>勝利時：賭けチップの3倍</small></button
+            ><span>NORMAL</span><small>勝利時：賭けチップの2倍</small></button
           ><button type="button" data-difficulty="hard"
-            ><span>HARD</span><small>勝利時：賭けチップの4倍</small></button
+            ><span>HARD</span><small>勝利時：賭けチップの3倍</small></button
           ></div
         ></div
       ></dialog
@@ -262,7 +262,7 @@
         ><div class="difficulty-list duo-mode-list"
           ><button id="duo-device" type="button"
             ><span>この端末でプレイ</span
-            ><small>1台を交代で持ちながら、ふたりで遊びます</small></button
+            ><small>端末を交代して遊びます。チップはゲーム内のみ・戦績には記録しません</small></button
           ><button id="duo-local" type="button"
             ><span>ローカル対戦</span
             ><small>スマホ・PCなど別々の端末をIDで接続します</small></button
@@ -312,9 +312,9 @@
           ><input
             id="profile-name-input"
             type="text"
-            maxlength="16"
+
             autocomplete="nickname" /></label
-        ><button class="start-button" id="profile-save" type="button"
+        ><p id="profile-name-error" class="nickname-error" role="alert"></p><button class="start-button" id="profile-save" type="button"
           ><span>名前を変更</span><small>戦績やIDはそのまま</small></button
         ></div
       ></dialog
@@ -386,7 +386,7 @@
           ><span
             ><small id="bet-rival-label">RIVAL</small><b id="bet-rival-chips">3000</b></span
           ></div
-        ><p class="chip-picker-note">タップで追加・もう一度タップで減らせます</p
+        ><p class="chip-picker-note">タップで1枚ずつ追加・解除、ボタンでまとめて選択できます</p
         ><div class="bet-chip-picker" id="bet-chip-picker"></div
         ><div class="bet-amount"
           ><small>SELECTED BET</small><strong id="bet-amount">0 CHIP</strong></div
@@ -450,7 +450,7 @@
         ><input
           id="account-name"
           type="text"
-          maxlength="16"
+
           autocomplete="nickname"
           placeholder="ニックネーム"
           required
@@ -498,7 +498,7 @@
             ><p
               >赤１００・青５００・黒1000のチップを選んでベットします。開始時の手持ちは合計3000チップです。</p
             ><p
-              >勝利時の受取総額はEASYが2倍、NORMALが3倍、HARDが4倍。対人戦は2倍です。引き分けは賭けた分が戻り、負けると戻りません。</p
+              >各ターンの操作時間は15秒。残り5秒で警告し、時間切れで相手のターンになります。1ゲームで同じ人が2回時間切れになると反則負けとなり、本人の賭けチップは没収・相手の賭けチップは返却されます。勝利時の受取総額はNORMALが2倍、HARDが3倍。対人戦は2倍です。引き分けは賭けた分が戻り、負けると戻りません。</p
             ></article
           >
           <article class="guide-slide" hidden

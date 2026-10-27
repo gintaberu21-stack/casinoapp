@@ -1,3 +1,4 @@
+import { normalizeNickname, nicknameError } from "../dist/js/nickname.js";
 import http from "node:http";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -7,6 +8,8 @@ import { WebSocketServer } from "ws";
 import { connect, close } from "./db.js";
 import { Store } from "./store.js";
 import { createAccessGate } from "./access.js";
+import { accountProfileChanges } from "./account-profile.js";
+import { recordBlackjackGains } from "./rankings.js";
 import { slotAction } from "./slot.js";
 import { rouletteAction } from "./roulette.js";
 
@@ -54,6 +57,17 @@ app.use(access.middleware);
 app.get("/", (_request, response) => response.sendFile(path.join(staticDir, "rooms.html")));
 // 対戦ロジック更新後に古いJSが端末へ残ると同期版と混在するため、常に再検証する。
 app.use(express.static(staticDir, { maxAge: 0, etag: true }));
+app.get("/api/rankings", (_request, response) =>
+  enqueue(async () => {
+    try {
+      const players = await store.leaderboard();
+      response.setHeader("Cache-Control", "no-store");
+      response.json({ players, totalPlayers: players.length });
+    } catch {
+      response.status(500).json({ error: "ランキングを取得できませんでした。もう一度お試しください。" });
+    }
+  }),
+);
 app.get("/api/matches", async (_request, response) => {
   try {
     response.json(await store.recentMatches());
@@ -70,21 +84,19 @@ const enqueue = (operation) => {
 };
 const STARTING_INVENTORY = { red: 5, blue: 3, black: 1 };
 const INVENTORY_TYPES = [...Object.keys(STARTING_INVENTORY), "white"];
-const cleanName = (value) =>
-  String(value ?? "")
-    .trim()
-    .replace(/[<>]/g, "")
-    .slice(0, 16);
+const cleanName = normalizeNickname;
 const accountKeyFor = (token) => crypto.createHash("sha256").update(String(token)).digest("hex");
 const publicAccount = (account) =>
   account
     ? {
         playerId: account.playerId,
         name: account.name,
+        avatar: account.avatar ?? null,
         chips: account.inventory ? Number(account.chips) || 0 : 3000,
         inventory: account.inventory ?? { ...STARTING_INVENTORY },
         debt: Math.max(0, Number(account.debt) || 0),
         bet: account.bet ?? { amount: 100, multiplier: 1 },
+        gainedChips: account.gainedChips ?? 0,
         stats: account.stats ?? { matches: 0, wins: 0, losses: 0, draws: 0 },
       }
     : null;
@@ -94,6 +106,32 @@ const send = (socket, message) => {
 };
 const sendTo = (playerId, message) => send(sockets.get(playerId), message);
 
+app.get("/api/account", (request, response) =>
+  enqueue(async () => {
+    const token = request.get("authorization")?.replace(/^Bearer /, "") ?? "";
+    const account = token.length >= 20 ? await store.findAccount(accountKeyFor(token)) : null;
+    if (!account) return response.status(401).json({ error: "ホーム画面でアカウントにログインしてください。" });
+    response.setHeader("Cache-Control", "no-store");
+    response.json({ account: publicAccount(account) });
+  }),
+);
+app.put("/api/account", express.json({ limit: "128kb" }), (request, response) =>
+  enqueue(async () => {
+    try {
+      const token = request.get("authorization")?.replace(/^Bearer /, "") ?? "";
+      const account = token.length >= 20 ? await store.findAccount(accountKeyFor(token)) : null;
+      if (!account) return response.status(401).json({ error: "ホーム画面でアカウントにログインしてください。" });
+      const changes = accountProfileChanges(request.body);
+      const updated = await store.updateAccount(account.playerId, changes);
+      await store.updatePlayerProfile(account.playerId, publicAccount(updated));
+      sendTo(account.playerId, { type: "account", account: publicAccount(updated) });
+      response.json({ account: publicAccount(updated) });
+    } catch (error) {
+      response.status(400).json({ error: error.message });
+    }
+  }),
+);
+
 app.use("/api/slot", express.json({ limit: "4kb" }));
 app.use("/api/roulette", express.json({ limit: "16kb" }));
 app.post("/api/roulette/:action", (request, response) =>
@@ -101,18 +139,20 @@ app.post("/api/roulette/:action", (request, response) =>
     try {
       if (!["state", "spin"].includes(request.params.action)) return response.sendStatus(404);
       const token = request.get("authorization")?.replace(/^Bearer /, "") ?? "";
-      const account = token.length >= 20 ? await store.findAccount(accountKeyFor(token)) : null;
+      let account = token.length >= 20 ? await store.findAccount(accountKeyFor(token)) : null;
       if (!account)
         return response.status(401).json({ error: "ホーム画面でアカウントを作成してください" });
+      if (account.pendingBet && !sockets.has(account.playerId))
+        account = await store.updateAccount(account.playerId, { pendingBet: null });
       if (sockets.get(account.playerId)?.peerId || account.pendingBet)
         return response
           .status(409)
-          .json({ error: "ブラックジャックの対戦・ベットを終了してください" });
+          .json({ error: "ブラックジャックの対戦・ベットを終了してください", balance: account.chips, account: publicAccount(account) });
       const result = await rouletteAction(store, account, request.params.action, request.body);
       const updated = await store.findAccountById(account.playerId);
       await store.updatePlayerProfile(account.playerId, publicAccount(updated));
       sendTo(account.playerId, { type: "account", account: publicAccount(updated) });
-      response.json(result);
+      response.json({ ...result, account: publicAccount(updated) });
     } catch (error) {
       response.status(400).json({ error: error.message });
     }
@@ -124,19 +164,21 @@ app.post("/api/slot/:action", (request, response) =>
       if (!["state", "start", "stop"].includes(request.params.action))
         return response.sendStatus(404);
       const token = request.get("authorization")?.replace(/^Bearer /, "") ?? "";
-      const account = token.length >= 20 ? await store.findAccount(accountKeyFor(token)) : null;
+      let account = token.length >= 20 ? await store.findAccount(accountKeyFor(token)) : null;
       if (!account)
         return response.status(401).json({ error: "先に既存のアカウントでログインしてください" });
+      if (account.pendingBet && !sockets.has(account.playerId))
+        account = await store.updateAccount(account.playerId, { pendingBet: null });
       const socket = sockets.get(account.playerId);
       if (socket?.peerId || account.pendingBet)
         return response
           .status(409)
-          .json({ error: "ブラックジャックの対戦・ベットを終了してください" });
+          .json({ error: "ブラックジャックの対戦・ベットを終了してください", balance: account.chips, account: publicAccount(account) });
       const result = await slotAction(store, account, request.params.action, request.body);
       const updated = await store.findAccountById(account.playerId);
       await store.updatePlayerProfile(account.playerId, publicAccount(updated));
       sendTo(account.playerId, { type: "account", account: publicAccount(updated) });
-      response.json(result);
+      response.json({ ...result, account: publicAccount(updated) });
     } catch (error) {
       response.status(400).json({ error: error.message });
     }
@@ -145,7 +187,7 @@ app.post("/api/slot/:action", (request, response) =>
 
 async function broadcastRoster() {
   const players = await store.listPlayers();
-  const payload = JSON.stringify({ type: "roster", players });
+  const payload = JSON.stringify({ type: "roster", players: players.map(({ avatar, ...player }) => player) });
   sockets.forEach((socket) => {
     if (socket.readyState === 1) socket.send(payload);
   });
@@ -154,15 +196,15 @@ async function broadcastRoster() {
 /** 申し込み中・対戦中の相手との関係を解消し、相手にも知らせる。 */
 async function releasePeer(socket, reason) {
   const { peerId } = socket;
+  // The stake is already deducted when a bet is confirmed. Never refund the departing account.
+  if (socket.playerId) await store.updateAccount(socket.playerId, { pendingBet: null });
   if (!peerId) return;
   // 関係を先に解消し、連続する退出通知による二重返金を防ぐ。
   socket.peerId = null;
   const peerSocket = sockets.get(peerId);
   if (peerSocket && peerSocket.peerId === socket.playerId) {
     peerSocket.peerId = null;
-    const departing = await store.findAccountById(socket.playerId);
     const remaining = await store.findAccountById(peerId);
-    if (departing) await store.updateAccount(socket.playerId, { pendingBet: null });
     if (remaining?.pendingBet) {
       const inventory = { ...remaining.inventory };
       for (const type of INVENTORY_TYPES)
@@ -224,6 +266,10 @@ wss.on("connection", (socket) => {
             send(socket, { type: "accountRequired" });
             return;
           }
+          if (nicknameError(nickname)) {
+            send(socket, { type: "accountError", message: nicknameError(nickname) });
+            return;
+          }
           account = await store.createAccount(socket.accountKey, nickname);
         }
         const previous = sockets.get(account.playerId);
@@ -231,6 +277,9 @@ wss.on("connection", (socket) => {
           await releasePeer(previous, "left");
           previous.terminate();
           account = await store.findAccount(socket.accountKey);
+        }
+        if (account.pendingBet) {
+          account = await store.updateAccount(account.playerId, { pendingBet: null });
         }
         socket.playerId = account.playerId;
         sockets.set(socket.playerId, socket);
@@ -251,6 +300,10 @@ wss.on("connection", (socket) => {
 
       if (message.type === "rename") {
         const name = cleanName(message.name);
+        if (nicknameError(name)) {
+          send(socket, { type: "accountError", message: nicknameError(name) });
+          return;
+        }
         if (!name) {
           send(socket, { type: "accountError", message: "名前を入力してください" });
           return;
@@ -351,6 +404,17 @@ wss.on("connection", (socket) => {
       if (message.type === "state" || message.type === "action") {
         if (socket.peerId !== target) return;
         sendTo(target, { type: message.type, from: socket.playerId, payload: message.payload });
+        return;
+      }
+
+      if (message.type === "roundResult") {
+        await recordBlackjackGains(store, socket.playerId, socket.peerId, message.payload);
+        const account = await store.findAccountById(socket.playerId);
+        send(socket, { type: "account", account: publicAccount(account) });
+        if (socket.peerId) {
+          const peer = await store.findAccountById(socket.peerId);
+          sendTo(socket.peerId, { type: "account", account: publicAccount(peer) });
+        }
         return;
       }
 

@@ -19,8 +19,8 @@ function setup(actor, skills) {
 }
 
 for (const actor of ["player", "dealer"]) {
-  for (const [skills, payout] of [[[], 1500], [["double"], 3000], [["triple"], 4500], [["double", "triple"], 9000], [["triple", "double"], 9000]]) {
-    test(`${actor}: ${skills.join(" + ") || "normal"} pays ${payout} from a normal 1500 payout`, () => {
+  for (const [skills, payout] of [[[], 1000], [["double"], 2000], [["triple"], 3000], [["double", "triple"], 6000], [["triple", "double"], 6000]]) {
+    test(`${actor}: ${skills.join(" + ") || "normal"} pays ${payout} from a normal 1000 payout`, () => {
       const game = setup(actor, skills);
       assert.equal(game.winPayoutFor(actor), payout);
       const result = game.settle();
@@ -46,13 +46,13 @@ test("repayment uses the extra profit without consuming the returned original be
   const game = setup("player", ["double"]);
   game.debts.player = 1000;
   const result = game.settle();
-  assert.equal(result.grossDeltas.player, 2500);
+  assert.equal(result.grossDeltas.player, 1500);
   assert.equal(result.repayments.player, 1000);
-  assert.equal(inventoryValue(result.returns.player), 2000);
+  assert.equal(inventoryValue(result.returns.player), 1000);
   assert.equal(game.debts.player, 0);
 });
 
-for (const [difficulty, factor] of [["easy", 2], ["normal", 3], ["hard", 4]]) {
+for (const [difficulty, factor] of [["normal", 2], ["hard", 3]]) {
   for (const skills of [[], ["double"], ["triple"], ["double", "triple"]]) {
     test(`${difficulty} pays the stake times ${factor} with ${skills.join("+") || "no skills"}`, () => {
       const game = new CasinoDuelGame();
@@ -84,7 +84,7 @@ test("legacy fractional balances round up and cannot be bet as white chips", () 
 
 test("two-player games keep the normal 2x payout independently of CPU difficulty", () => {
   const game = setup("player", []);
-  game.difficulty = "easy";
+  game.difficulty = "hard";
   for (const mode of ["duo", "online"]) {
     game.mode = mode;
     assert.equal(game.winPayoutFor("player"), 1000);

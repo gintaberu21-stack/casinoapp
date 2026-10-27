@@ -3937,6 +3937,40 @@ button {
   color: #aa9da0;
   font-size: 0.63rem;
 }
+.chip-picker-selected-count {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  color: #c7b9bb;
+  font-size: 0.75rem;
+  text-align: left;
+}
+.chip-picker-controls {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 6px;
+}
+.chip-picker-bulk-button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 3px;
+  border: 1px solid #ffe17755;
+  border-radius: 8px;
+  background: #ffe17712;
+  color: #ffe17d;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.chip-picker-bulk-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.chip-picker-bulk-button:focus-visible {
+  outline: 2px solid #ffe177;
+  outline-offset: 2px;
+}
 .chip-token-row {
   display: flex;
   flex-wrap: wrap;
@@ -4115,3 +4149,16 @@ button {
     gap: 7px 12px;
   }
 }
+
+.game-turn-label {
+  color: #ffe17d;
+  font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.turn-timer { color: #ffe17d; font-size: clamp(0.6rem, 2vw, 0.8rem); line-height: 1.5; text-align: center; }
+.turn-timer.is-warning { color: #ff7777; font-weight: 800; background: #620b18; border-radius: 5px; padding: 2px 4px; }
+
+.nickname-error, #account-create-error { color: #ff6b7a; font-size: 13px; line-height: 1.6; }

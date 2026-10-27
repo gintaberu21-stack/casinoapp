@@ -13,6 +13,7 @@ export async function connect(uri) {
   await database.collection("accounts").createIndex({ accountKey: 1 }, { unique: true });
   await database.collection("accounts").createIndex({ playerId: 1 }, { unique: true });
   await database.collection("matches").createIndex({ finishedAt: -1 });
+  await database.collection("accounts").createIndex({ chips: -1, playerId: 1 });
   return database;
 }
 

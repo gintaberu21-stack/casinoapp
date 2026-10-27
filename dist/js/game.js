@@ -5,7 +5,7 @@ const opponentOf = (actor) => (actor === "player" ? "dealer" : "player");
 
 /** 1試合のラウンド数。 */
 export const MATCH_ROUNDS = 3;
-export const DIFFICULTY_PAYOUTS = { easy: 2, normal: 3, hard: 4 };
+export const DIFFICULTY_PAYOUTS = { normal: 2, hard: 3 };
 /** 開始時の持ちチップ。 */
 export const CHIP_TYPES = {
   red: { value: 100, label: "RED" },
@@ -49,6 +49,8 @@ export class CasinoDuelGame {
       dealer: { amount: 100, multiplier: 1 },
     };
     this.skills = { player: [], dealer: [] };
+    this.turnTimeouts = { player: 0, dealer: 0 };
+    this.turnDeadline = 0;
     this.matchRound = 0;
     this.matchWins = { player: 0, dealer: 0 };
     this.resetRound();
@@ -56,7 +58,7 @@ export class CasinoDuelGame {
 
   configure({ mode, difficulty }) {
     this.mode = mode;
-    this.difficulty = difficulty;
+    this.difficulty = difficulty === "hard" ? "hard" : "normal";
   }
 
   /** ホストの確定状態を別端末へ送るための、JSON化可能なスナップショット。 */
@@ -78,6 +80,8 @@ export class CasinoDuelGame {
       skills: swapPair(this.skills),
       matchRound: this.matchRound,
       matchWins: swapPair(this.matchWins),
+      turnTimeouts: swapPair(this.turnTimeouts),
+      turnDeadline: this.turnDeadline,
       player: clone(swapSeats ? this.dealer : this.player),
       dealer: clone(swapSeats ? this.player : this.dealer),
       reservedCard: swapPair(this.reservedCard),
@@ -107,6 +111,8 @@ export class CasinoDuelGame {
       "skills",
       "matchRound",
       "matchWins",
+      "turnTimeouts",
+      "turnDeadline",
       "player",
       "dealer",
       "reservedCard",
@@ -143,6 +149,8 @@ export class CasinoDuelGame {
   }
 
   startMatch(profiles = {}) {
+    this.turnTimeouts = { player: 0, dealer: 0 };
+    this.turnDeadline = 0;
     const profileOf = (actor, fallbackName) => ({
       name: String(profiles[actor]?.name ?? fallbackName),
       chips: Number.isFinite(Number(profiles[actor]?.chips))
@@ -356,7 +364,7 @@ export class CasinoDuelGame {
   }
 
   chooseDealerSpecial() {
-    const useChance = { easy: 0.58, normal: 0.76, hard: 0.92 }[this.difficulty] ?? 0.76;
+    const useChance = { normal: 0.76, hard: 0.92 }[this.difficulty] ?? 0.76;
     if (this.locked.dealer || !this.skills.dealer.length || Math.random() > useChance) return null;
     const playerScore = this.score("player");
     const dealerScore = this.score("dealer");
@@ -376,7 +384,6 @@ export class CasinoDuelGame {
   dealerShouldHit() {
     const dealer = this.score("dealer");
     const player = this.score("player");
-    if (this.difficulty === "easy") return dealer < 19;
     if (this.difficulty === "hard") return dealer < 17 || (dealer < player && dealer < 21);
     return dealer < 20;
   }
@@ -389,7 +396,12 @@ export class CasinoDuelGame {
     );
   }
 
-  settle() {
+  registerTurnTimeout(actor) {
+    this.turnTimeouts[actor] += 1;
+    return this.turnTimeouts[actor] >= 2;
+  }
+
+  settle({ forfeit = null } = {}) {
     const player = this.score("player");
     const dealer = this.score("dealer");
     const blackjack = player === 21 && dealer !== 21;
@@ -398,6 +410,7 @@ export class CasinoDuelGame {
     else if (dealer > 21 || player > dealer) outcome = "win";
     else if (dealer > player) outcome = "loss";
 
+    if (forfeit) outcome = forfeit === "player" ? "loss" : "win";
     const stakes = { player: this.wagerFor("player"), dealer: this.wagerFor("dealer") };
     const loser = outcome === "win" ? "dealer" : outcome === "loss" ? "player" : null;
     const winner = outcome === "win" ? "player" : outcome === "loss" ? "dealer" : null;
@@ -414,10 +427,10 @@ export class CasinoDuelGame {
       });
     } else {
       const bet = this.bets[winner];
-      const profit = this.winPayoutFor(winner) - bet.amount;
+      const profit = forfeit ? 0 : this.winPayoutFor(winner) - bet.amount;
       returns[winner] = { ...bet.chips };
       const profitChips =
-        bet.multiplier === 1 && this.basePayoutMultiplier() === 2
+        !forfeit && bet.multiplier === 1 && this.basePayoutMultiplier() === 2
           ? bet.chips
           : valueToInventory(profit);
       Object.keys(CHIP_TYPES).forEach((type) => {
@@ -449,7 +462,7 @@ export class CasinoDuelGame {
     if (outcome === "loss") this.matchWins.dealer += 1;
     const needsLoan = ["player", "dealer"].filter((actor) => this.chips[actor] <= 0);
     const bankrupt = needsLoan[0] ?? null;
-    const matchComplete = this.matchRound >= MATCH_ROUNDS;
+    const matchComplete = Boolean(forfeit) || this.matchRound >= MATCH_ROUNDS;
     const netWorth = {
       player: this.chips.player - this.debts.player,
       dealer: this.chips.dealer - this.debts.dealer,
@@ -468,6 +481,7 @@ export class CasinoDuelGame {
       bankrupt,
       needsLoan,
       matchComplete,
+      forfeit,
       netWorth,
       shielded: false,
       wager: this.wagerFor("player"),
@@ -477,7 +491,7 @@ export class CasinoDuelGame {
       chips: { ...this.chips },
       debts: { ...this.debts },
       // 借金で順位が有利にならないよう、最終的な純資産で決める。
-      matchOutcome: !matchComplete
+      matchOutcome: forfeit ? outcome : !matchComplete
         ? null
         : netWorth.player > netWorth.dealer
           ? "win"

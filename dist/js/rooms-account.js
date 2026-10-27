@@ -1,3 +1,4 @@
+import { normalizeNickname, nicknameError } from "./nickname.js";
 import { MatchService } from "./match.js";
 import { waitForBackend } from "./backend.js";
 
@@ -36,7 +37,10 @@ function render() {
   chips.textContent = `${Number(account.chips ?? 0).toLocaleString("ja-JP")} CHIP`;
   wallet.replaceChildren(name, chips);
   wallet.title = `${account.name} / ${chips.textContent}`;
+  window.dispatchEvent(new CustomEvent("casino:account", { detail: account }));
 }
+window.addEventListener("casino:profile-updated", event => service.setAccount(event.detail));
+
 dialog.addEventListener("cancel", (event) => event.preventDefault());
 service.addEventListener("account", render);
 service.addEventListener("welcome", () => {
@@ -62,11 +66,14 @@ service.addEventListener("connection", (event) => {
 });
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  const name = input.value.trim().replace(/[<>]/g, "");
-  if (!name) {
-    error.textContent = "ニックネームを入力してください";
+  const name = normalizeNickname(input.value);
+  const validation = nicknameError(name);
+  if (validation) {
+    error.textContent = validation;
+    input.setAttribute("aria-invalid", "true");
     return;
   }
+  input.removeAttribute("aria-invalid");
   error.textContent = "アカウントを登録しています…";
   submit.disabled = true;
   submit.textContent = "登録中…";

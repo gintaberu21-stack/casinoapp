@@ -1,3 +1,4 @@
+import { normalizeNickname, nicknameError } from "./nickname.js";
 import { CasinoDuelGame, DIFFICULTY_PAYOUTS } from "./game.js";
 import { getSpecial } from "./skills.js";
 import { GameUI } from "./ui.js";
@@ -5,7 +6,9 @@ import { scoreHand } from "./deck.js";
 import { installSoundBoard } from "./sound.js";
 import { MatchService } from "./match.js";
 import { MatchScreen } from "./matchUI.js";
-import { recordChipGain } from "./game-records.js";
+import { recordBlackjackRound, recordBlackjackMatch } from "./game-records.js";
+
+import { TurnTimer, TURN_LIMIT_MS } from "./turn-timer.js";
 
 const game = new CasinoDuelGame();
 const ui = new GameUI();
@@ -17,6 +20,11 @@ let selectedMode = "solo";
 let recordMatchId = crypto.randomUUID();
 let selectedDifficulty = "normal";
 let busy = false;
+let matchInterrupted = false;
+const turnTimer = new TurnTimer();
+let turnRemaining = TURN_LIMIT_MS;
+let rejectTurnChoice = null;
+let turnSerial = 0;
 let cpuSpecialUsed = false;
 let onlineRole = null;
 let onlinePendingSpecial = null;
@@ -68,7 +76,7 @@ function profileFromGame(actor) {
 }
 
 function persistProgress(activeBet = false) {
-  if (onlineRole === "guest") return;
+  if (matchInterrupted || game.mode === "duo" || onlineRole === "guest") return;
   const own = { ...profileFromGame("player"), activeBet };
   const peer = isOnlineHost() ? { ...profileFromGame("dealer"), activeBet } : null;
   matchService.saveProgress(own, peer);
@@ -113,6 +121,9 @@ function syncState(event = "state", result = null, action = null) {
 
 /** 行動（HIT / STAND）を終えてターンを相手に渡す。必殺技ではここを通らない。 */
 function passTurn() {
+  turnSerial++;
+  stopTurnTimer();
+  turnRemaining = TURN_LIMIT_MS;
   cpuSpecialUsed = false;
   game.switchActor();
 }
@@ -144,6 +155,9 @@ function setDifficulty(difficulty) {
 }
 
 async function startGame(options = {}) {
+  stopTurnTimer();
+  turnRemaining = TURN_LIMIT_MS;
+  matchInterrupted = false;
   recordMatchId = crypto.randomUUID();
   if (busy) return;
   localRematchReady = false;
@@ -195,6 +209,9 @@ async function startGame(options = {}) {
 }
 
 async function beginRound() {
+  turnSerial++;
+  stopTurnTimer();
+  turnRemaining = TURN_LIMIT_MS;
   busy = true;
   cpuSpecialUsed = false;
   ui.els["standing-overlay"].hidden = true;
@@ -226,7 +243,7 @@ async function beginRound() {
       : null,
   });
   game.startRound(firstActor);
-  if (game.mode === "duo") await ui.requestHandoff(firstActor);
+  if (game.mode === "duo") await ui.requestHandoff(firstActor, game);
   ui.prepareRound(game, useSpecial);
   await ui.dealInitial(game);
   game.phase = "playing";
@@ -237,17 +254,18 @@ async function beginRound() {
 }
 
 async function enterTurn(needsHandoff) {
+  if (matchInterrupted) return;
   if (game.isRoundOver()) {
     await finishRound();
     return;
   }
   if (game.stood[game.actor]) {
     passTurn();
-    await enterTurn(false);
+    await enterTurn(needsHandoff);
     return;
   }
   busy = true;
-  if (game.mode === "duo" && needsHandoff) await ui.requestHandoff(game.actor);
+  if (game.mode === "duo" && needsHandoff) await ui.requestHandoff(game.actor, game);
   ui.renderHands(game);
   ui.renderSpecials(game);
   ui.setActions(false, game.actor);
@@ -255,6 +273,7 @@ async function enterTurn(needsHandoff) {
   if (isOnlineHost() && game.actor === "dealer") {
     ui.els["round-status"].textContent = "PLAYER 2 TURN";
     ui.renderSpecials(game);
+    startTurnTimer();
     syncState("turn");
     busy = false;
     return;
@@ -285,8 +304,74 @@ async function enterTurn(needsHandoff) {
   if (game.locked[game.actor]) ui.toast("LOCK — このターンは必殺技を使えません");
   ui.setActions(true, game.actor);
   ui.renderSpecials(game);
+  startTurnTimer();
   syncState("turn");
   busy = false;
+}
+
+function stopTurnTimer(preserve = false) {
+  if (preserve && game.turnDeadline) turnRemaining = Math.max(0, game.turnDeadline - Date.now());
+  turnTimer.stop();
+  game.turnDeadline = 0;
+  ui.updateTurnTimer(game);
+}
+function startTurnTimer() {
+  if (onlineRole === "guest" || (game.mode === "solo" && game.actor === "dealer")) return;
+  game.turnDeadline = Date.now() + turnRemaining;
+  turnTimer.start(game.turnDeadline, {
+    onTick: () => ui.updateTurnTimer(game),
+    onTimeout: () => void handleTurnTimeout(),
+  });
+}
+function watchGuestTimer() {
+  turnTimer.stop();
+  if (!game.turnDeadline) { ui.updateTurnTimer(game); return; }
+  turnTimer.start(game.turnDeadline, {
+    onTick: () => ui.updateTurnTimer(game),
+    onTimeout: () => ui.updateTurnTimer(game),
+  });
+}
+function acceptTurnAction() {
+  if (game.turnDeadline && Date.now() >= game.turnDeadline) {
+    void handleTurnTimeout();
+    return false;
+  }
+  stopTurnTimer(true);
+  return true;
+}
+async function chooseDuringTurn(choose) {
+  const serial = turnSerial;
+  startTurnTimer();
+  syncState("turnClock");
+  try {
+    return await Promise.race([
+      choose(),
+      new Promise((resolve, reject) => { rejectTurnChoice = reject; }),
+    ]);
+  } finally {
+    if (serial === turnSerial) {
+      rejectTurnChoice = null;
+      stopTurnTimer(true);
+    }
+  }
+}
+async function handleTurnTimeout() {
+  if (onlineRole === "guest" || matchInterrupted || game.phase !== "playing") return;
+  const actor = game.actor;
+  onlinePendingSpecial = null;
+  const forfeit = game.registerTurnTimeout(actor);
+  stopTurnTimer();
+  rejectTurnChoice?.(new Error("TURN_TIMEOUT"));
+  rejectTurnChoice = null;
+  for (const id of ["select-card-overlay", "special-overlay"]) ui.els[id].hidden = true;
+  const name = ui.seatLabels(game)[actor];
+  ui.toast(forfeit
+    ? `${name}：2回目の時間切れで反則負けです`
+    : `${name}：時間切れ（1/2回）。相手のターンになります`);
+  if (forfeit) { await finishRound({ forfeit: actor }); return; }
+  clearTurnLock(actor);
+  passTurn();
+  await enterTurn(true);
 }
 
 function clearTurnLock(actor) {
@@ -296,6 +381,7 @@ function clearTurnLock(actor) {
 async function performHit(isAi = false) {
   if ((busy && !isAi) || game.phase !== "playing") return;
   const actor = game.actor;
+  if (!acceptTurnAction()) return;
   busy = true;
   ui.setActions(false, actor);
   const card = game.hit(actor);
@@ -322,6 +408,7 @@ async function performHit(isAi = false) {
 async function performStand(isAi = false) {
   if ((busy && !isAi) || game.phase !== "playing") return;
   const actor = game.actor;
+  if (!acceptTurnAction()) return;
   busy = true;
   game.stood[actor] = true;
   ui.showReservedCard(game, game.mode === "duo" ? actor : "player");
@@ -386,6 +473,11 @@ async function useSpecial(id) {
 }
 
 async function executeSpecial(id, isAi, supplied = null) {
+  try { await executeSpecialAction(id, isAi, supplied); }
+  catch (error) { if (error.message !== "TURN_TIMEOUT") throw error; }
+}
+
+async function executeSpecialAction(id, isAi, supplied = null) {
   const actor = game.actor;
   const opponent = actor === "player" ? "dealer" : "player";
   const special = getSpecial(id);
@@ -393,6 +485,7 @@ async function executeSpecial(id, isAi, supplied = null) {
     ui.toast("今は必殺技を使えません");
     return;
   }
+  if (!isAi && !acceptTurnAction()) return;
   busy = true;
   ui.setActions(false, actor);
   let cardId;
@@ -404,17 +497,17 @@ async function executeSpecial(id, isAi, supplied = null) {
   if (id === "selectReverse")
     cardId =
       supplied?.cardId ??
-      (isAi ? highestCardId(game[opponent]) : await ui.chooseOpponentCard(game[opponent]));
+      (isAi ? highestCardId(game[opponent]) : await chooseDuringTurn(() => ui.chooseOpponentCard(game[opponent])));
   if (id === "shuffle") {
     if (supplied?.actorCardId && supplied?.opponentCardId)
       ({ actorCardId, opponentCardId } = supplied);
     else if (isAi) ({ actorCardId, opponentCardId } = bestSwap(game[actor], game[opponent]));
     else {
       const labels = ui.seatLabels(game);
-      ({ actorCardId, opponentCardId } = await ui.chooseSwapCards(game[actor], game[opponent], {
+      ({ actorCardId, opponentCardId } = await chooseDuringTurn(() => ui.chooseSwapCards(game[actor], game[opponent], {
         own: labels[actor],
         opponent: labels[opponent],
-      }));
+      })));
     }
   }
   if (["selectReverse", "shuffle"].includes(id)) {
@@ -444,13 +537,14 @@ async function executeSpecial(id, isAi, supplied = null) {
     await ui.addCard(game, actor, result.added);
     if (isOnlineHost() && actor === "dealer" && !supplied?.discardId) {
       onlinePendingSpecial = { id, actor, isAi, chipsBefore, result };
+      startTurnTimer();
       syncState("chooseDiscard");
       busy = false;
       return;
     }
     const discardId =
       supplied?.discardId ??
-      (isAi ? bestDiscardId(game[actor]) : await ui.chooseCards(game[actor], "捨てる手札を選択"));
+      (isAi ? bestDiscardId(game[actor]) : await chooseDuringTurn(() => ui.chooseCards(game[actor], "捨てる手札を選択")));
     result.discarded = game.discardCard(actor, discardId);
     ui.renderHands(game);
   } else {
@@ -497,8 +591,9 @@ async function executeSpecial(id, isAi, supplied = null) {
   await enterTurn(false);
 }
 
-async function finishRound() {
-  if (game.phase === "settled") return;
+async function finishRound({ forfeit = null } = {}) {
+  stopTurnTimer();
+  if (matchInterrupted || game.phase === "idle" || game.phase === "settled") return;
   busy = true;
   ui.setActions(false, game.actor);
   ui.els["round-status"].textContent = "SHOWDOWN";
@@ -507,20 +602,26 @@ async function finishRound() {
   syncState("showdown");
   await wait(700);
   const chipsBefore = { ...game.chips };
-  const result = game.settle();
-  recordChipGain("blackjack", result.returns?.player ?? 0, `${recordMatchId}:${result.round}`);
+  if (matchInterrupted) return;
+  const result = game.settle({ forfeit });
+  if (game.mode !== "duo") matchService.saveRoundResult({
+    id: `${recordMatchId}:${result.round}`, outcome: result.outcome, returns: result.returns,
+  });
+  if (game.mode !== "duo") recordBlackjackRound(result, `${recordMatchId}:${result.round}`);
   ui.renderHands(game);
   await ui.animateChipPayout(result);
   await ui.animateChipChange(game, chipsBefore);
-  if (!(await resolveDebtChoices(result))) return;
+  if (!forfeit && !(await resolveDebtChoices(result))) return;
   refreshResultBalances(result);
   persistProgress();
   await wait(1300);
   // ラウンドごとは勝敗を出さず、チップの状況だけ見せる。勝敗画面は試合の最後だけ。
+  if (matchInterrupted) return;
   if (result.matchComplete) {
+    if (game.mode !== "duo") recordBlackjackMatch(result, recordMatchId);
     ui.showResult(result, game);
     syncState("result", result);
-    matchService.saveResult({
+    if (game.mode !== "duo") matchService.saveResult({
       winner: result.matchOutcome,
       chips: result.chips,
       debts: result.debts,
@@ -544,7 +645,7 @@ function refreshResultBalances(result) {
     player: game.chips.player - game.debts.player,
     dealer: game.chips.dealer - game.debts.dealer,
   };
-  if (result.matchComplete) {
+  if (result.matchComplete && !result.forfeit) {
     result.matchOutcome =
       result.netWorth.player > result.netWorth.dealer
         ? "win"
@@ -594,6 +695,8 @@ async function nextRound() {
 }
 
 function returnToLobby() {
+  turnSerial++;
+  stopTurnTimer();
   busy = false;
   game.phase = "idle";
   [
@@ -697,6 +800,7 @@ async function handleRemoteAction(action) {
     return;
   }
   if (action.type === "discard" && onlinePendingSpecial) {
+    if (!acceptTurnAction()) return;
     busy = true;
     const pending = onlinePendingSpecial;
     onlinePendingSpecial = null;
@@ -719,7 +823,13 @@ async function receiveHostState(payload) {
   if (onlineRole !== "guest" || !payload?.state) return;
   const before = { ...game.chips };
   const newRound = payload.state.matchRound !== guestRenderedRound;
+  const previousActor = game.actor;
   game.restore(payload.state);
+  if (game.actor !== previousActor || game.phase !== "playing") {
+    for (const id of ["select-card-overlay", "special-overlay"]) ui.els[id].hidden = true;
+  }
+  watchGuestTimer();
+  if (payload.event === "turnClock") return;
   ui.setNames(game.names);
   document.body.dataset.mode = "online";
   if (payload.event === "betRequest") {
@@ -727,6 +837,7 @@ async function receiveHostState(payload) {
     ui.els["standing-overlay"].hidden = true;
     const bet = await ui.requestBet(game, "player");
     game.setBet("player", bet);
+    matchService.saveProgress({ ...profileFromGame("player"), activeBet: true });
     matchService.sendAction({ type: "bet", bet });
     ui.els["round-status"].textContent = "HOST BETTING";
     ui.toast("ベットを確定しました。相手を待っています…");
@@ -787,11 +898,7 @@ async function receiveHostState(payload) {
     return;
   }
   if (payload.event === "standing") {
-    recordChipGain(
-      "blackjack",
-      payload.result?.returns?.player ?? 0,
-      `${recordMatchId}:${payload.result?.round}`,
-    );
+    recordBlackjackRound(payload.result, `${recordMatchId}:${payload.result?.round}`);
     ui.showStanding(payload.result, game);
     ui.els["standing-next"].disabled = true;
     ui.els["standing-next"].textContent = "ホストの操作を待っています";
@@ -799,11 +906,8 @@ async function receiveHostState(payload) {
     return;
   }
   if (payload.event === "result") {
-    recordChipGain(
-      "blackjack",
-      payload.result?.returns?.player ?? 0,
-      `${recordMatchId}:${payload.result?.round}`,
-    );
+    recordBlackjackRound(payload.result, `${recordMatchId}:${payload.result?.round}`);
+    recordBlackjackMatch(payload.result, recordMatchId);
     ui.showResult(payload.result, game);
     busy = true;
     return;
@@ -987,10 +1091,15 @@ matchService.addEventListener("state", (event) => {
     });
 });
 matchService.addEventListener("action", (event) => handleRemoteAction(event.detail.payload));
-matchService.addEventListener("left", () => {
-  if (!isOnline()) return;
-  ui.toast("相手が退出したため、メイン画面へ戻ります");
-  setTimeout(returnToLobby, 900);
+function interruptMatch() {
+  if (game.mode === "duo" || game.phase === "idle") return;
+  matchInterrupted = true;
+  returnToLobby();
+  ui.toast("通信が切れたためゲームを終了しました。離脱側の賭けチップは没収、相手の賭けチップは返却されます。");
+}
+matchService.addEventListener("left", interruptMatch);
+matchService.addEventListener("connection", (event) => {
+  if (!event.detail.connected) interruptMatch();
 });
 matchService.addEventListener("account", () => renderAccount());
 matchService.addEventListener("welcome", () => {
@@ -1007,7 +1116,7 @@ ui.els["account-create-form"].addEventListener("submit", (event) => {
   event.preventDefault();
   const name = ui.els["account-name"].value.trim();
   if (!matchService.register(name)) {
-    ui.els["account-create-error"].textContent = "ニックネームを入力してください";
+    ui.els["account-create-error"].textContent = nicknameError(name);
     return;
   }
   ui.els["account-create-error"].textContent = "";
@@ -1023,6 +1132,9 @@ ui.els["stats-open"].addEventListener("click", () => {
   ui.els["stats-dialog"].showModal();
 });
 ui.els["profile-save"].addEventListener("click", () => {
+  const validation = nicknameError(ui.els["profile-name-input"].value);
+  ui.els["profile-name-error"].textContent = validation;
+  if (validation) return;
   if (!matchService.rename(ui.els["profile-name-input"].value)) {
     ui.toast("ニックネームを入力してください");
     return;

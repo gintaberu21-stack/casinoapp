@@ -82,6 +82,8 @@ export class Store {
       inventory: { red: 5, blue: 3, black: 1 },
       debt: 0,
       bet: { amount: 100, multiplier: 1 },
+      gainedChips: 0,
+      gainedByGame: { blackjack: 0, roulette: 0, slot: 0 },
       stats: { matches: 0, wins: 0, losses: 0, draws: 0 },
       createdAt: now,
       updatedAt: now,
@@ -110,6 +112,45 @@ export class Store {
         { $set: safe },
         { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
       );
+  }
+
+  async recordChipGain(playerId, amount, eventId, game) {
+    if (!Number.isSafeInteger(amount) || amount < 0 ||
+        typeof eventId !== "string" || eventId.length > 160 ||
+        !["blackjack", "roulette", "slot"].includes(game)) return null;
+    const id = `${game}:${eventId}`;
+    if (!this.usesMongo) {
+      const account = [...this.memory.accounts.values()].find(item => item.playerId === playerId);
+      if (!account) return null;
+      account.gainEventIds ??= [];
+      if (!account.gainEventIds.includes(id)) {
+        account.gainEventIds.push(id);
+        account.gainedChips = (account.gainedChips ?? 0) + amount;
+        account.gainedByGame ??= {};
+        account.gainedByGame[game] = (account.gainedByGame[game] ?? 0) + amount;
+        account.updatedAt = new Date();
+      }
+      return { ...account };
+    }
+    const account = await this.database.collection("accounts").findOneAndUpdate(
+      { playerId, gainEventIds: { $ne: id } },
+      { $inc: { gainedChips: amount, [`gainedByGame.${game}`]: amount },
+        $addToSet: { gainEventIds: id }, $set: { updatedAt: new Date() } },
+      { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
+    );
+    return account ?? this.findAccountById(playerId);
+  }
+
+  async leaderboard() {
+    const accounts = this.usesMongo
+      ? await this.database.collection("accounts")
+          .find({}, { projection: { _id: 0, playerId: 1, name: 1, chips: 1 } }).toArray()
+      : [...this.memory.accounts.values()];
+    return accounts
+      .map(account => ({ playerId: account.playerId, name: account.name,
+        chips: Math.max(0, Number(account.chips) || 0) }))
+      .sort((a, b) => b.chips - a.chips || a.playerId - b.playerId)
+      .map((account, index) => ({ rank: index + 1, ...account }));
   }
 
   async recordOutcome(playerId, outcome) {

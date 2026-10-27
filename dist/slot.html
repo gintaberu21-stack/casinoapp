@@ -560,6 +560,7 @@
     <script type="module">
       import { apiFetch } from "./js/backend.js";
       import { SlotSound } from "./js/slot-sound.js";
+      import { cachedWalletBalance, syncWalletResponse } from "./js/shared-wallet.js";
       const slotSound = new SlotSound();
       "use strict";
       const symbolOrder = [
@@ -603,7 +604,7 @@
         },
         bets = [100, 200, 300, 400, 500];
       const $ = (id) => document.getElementById(id);
-      let balance = 0,
+      let balance = cachedWalletBalance(),
         betIndex = 0,
         win = 0,
         indices = [0, 1, 2],
@@ -618,7 +619,7 @@
       const stopPending = [false, false, false];
       let stopQueue = Promise.resolve();
       const busy = () => pending || running.some(Boolean);
-      const fmt = (n) => n.toLocaleString("ja-JP");
+      const fmt = (n) => n === null ? "—" : n.toLocaleString("ja-JP");
       function renderBetChips() {
         let remainder = bets[betIndex];
         const groups = [];
@@ -747,6 +748,8 @@
           body: JSON.stringify(body),
         });
         const data = await response.json();
+        const sharedBalance = syncWalletResponse(data);
+        if (sharedBalance !== null) balance = sharedBalance;
         if (!response.ok) throw Error(data.error || "CONNECTION ERROR");
         return data;
       }
@@ -833,6 +836,13 @@
           stopPending.fill(false);
           $("machine").classList.remove("hit");
           $("status").textContent = "STOP";
+          $("spin").blur();
+          requestAnimationFrame(() => {
+            document.querySelector(".game").scrollIntoView({
+              block: "start",
+              behavior: reduced ? "instant" : "smooth",
+            });
+          });
           previous = performance.now();
           tick = requestAnimationFrame(frame);
           timeout = setTimeout(() => {

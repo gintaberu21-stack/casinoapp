@@ -45,6 +45,7 @@
         aria-label="アカウントについて"
         data-info="profile"
       ></button>
+      <button class="ranking-crown" id="rankings-open" type="button" aria-label="所持チップランキング" aria-haspopup="dialog" aria-controls="rankings-dialog" title="所持チップランキング"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 9 10 15 16 5 22 15 28 9 25 25H7Z"/><path d="M8 29H24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       <a
         class="image-action preview-lobby"
         href="./rooms.html"
@@ -65,13 +66,12 @@
       ></button>
     </main>
     <dialog class="lobby-account" id="lobby-account"
-      ><form id="lobby-account-form"
+      ><form novalidate id="lobby-account-form"
         ><p>WELCOME TO</p><h2>ROYAL PLAY</h2><span class="account-suit" aria-hidden="true">♦</span
         ><label for="lobby-name">最初にニックネームを決めてください</label
         ><input
-          id="lobby-name"
+          id="lobby-name" aria-describedby="lobby-account-error"
           type="text"
-          maxlength="16"
           autocomplete="nickname"
           placeholder="ニックネーム"
           required
@@ -83,6 +83,50 @@
       ></dialog
     >
     <script type="module" src="./js/rooms-account.js?v=2"></script>
+    <dialog id="rankings-dialog" class="rankings-dialog" aria-labelledby="rankings-title">
+      <header class="rankings-heading">
+        <div><p>ROYAL PLAY / HALL OF FAME</p><h2 id="rankings-title">所持チップランキング</h2></div>
+        <button id="rankings-close" class="rankings-close" type="button" aria-label="ランキングを閉じる">×</button>
+      </header>
+      <p class="rankings-description">現在の所持チップ数でランキング。同じ端末での二人対戦は対象外です。</p>
+      <div class="rankings-toolbar"><p id="rankings-status" role="status" aria-live="polite"></p><button id="rankings-refresh" type="button">更新</button></div>
+      <div id="rankings-content"></div>
+      <p class="rankings-note">現在アカウントに保存されている所持チップ数で順位を表示します。同額はID順に表示します。</p>
+    </dialog>
+    <script type="module" src="./js/rankings.js"></script>
+    <dialog id="account-profile-dialog" class="account-profile-dialog" aria-labelledby="account-player-name">
+      <button id="account-edit" class="account-edit" type="button" aria-label="プロフィールを編集" title="プロフィールを編集">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="account-close" class="dialog-close" type="button" aria-label="アカウントを閉じる">×</button>
+      <div class="account-card">
+        <section class="account-details">
+          <h2 id="account-player-name">プレイヤー</h2>
+          <label class="account-name-field" id="account-name-field" hidden>プレイヤー名<input id="account-name-input" form="account-edit-form" type="text" aria-describedby="account-profile-status" autocomplete="nickname" required></label>
+          <p class="account-id">ID <span id="account-player-id">—</span></p>
+          <p class="account-chips"><strong id="account-player-chips">—</strong><span>CHIP</span></p>
+        </section>
+        <div class="account-picture-area">
+          <button class="account-picture" id="account-picture-button" type="button" aria-label="アイコン写真を選ぶ" disabled>
+            <img id="account-avatar" alt="プレイヤーのアイコン" hidden>
+            <span class="account-avatar-default" id="account-avatar-default" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="35" r="17"/><path d="M19 90v-8a31 31 0 0 1 62 0v8Z"/></svg></span>
+          </button>
+          <span class="account-picture-hint" id="account-picture-hint" hidden>タップして写真を変更</span>
+        </div>
+      </div>
+      <form id="account-edit-form" hidden novalidate>
+        <input id="account-photo-file" type="file" accept="image/*" hidden>
+        <div class="account-photo-actions"><button id="account-photo-select" type="button">写真ライブラリから選択</button><button id="account-photo-remove" type="button">写真を削除</button></div>
+        <fieldset id="account-photo-crop" class="account-photo-crop" hidden><legend>写真の位置・大きさ</legend>
+          <label>拡大<input id="account-photo-zoom" type="range" min="1" max="3" step="0.01" value="1"></label>
+          <label>左右<input id="account-photo-x" type="range" min="-100" max="100" value="0"></label>
+          <label>上下<input id="account-photo-y" type="range" min="-100" max="100" value="0"></label>
+        </fieldset>
+        <div class="account-edit-actions"><button id="account-edit-cancel" type="button">キャンセル</button><button id="account-edit-save" type="submit">保存する</button></div>
+      </form>
+      <p id="account-profile-status" class="account-profile-status" role="status" aria-live="polite"></p>
+    </dialog>
+    <script type="module" src="./js/account-profile.js"></script>
     <dialog id="preview-info"
       ><button class="dialog-close" type="button" aria-label="閉じる">×</button
       ><h2 id="preview-title"></h2><p id="preview-text"></p
@@ -97,7 +141,7 @@
           "各部屋の「部屋に入る」からゲームへ移動できます。絵柄合わせの部屋ではスロットを遊べます。ブラックジャックとスロットは同じアカウントのチップを使用します。",
         ],
       };
-      document.querySelectorAll("[data-info]").forEach((button) =>
+      document.querySelectorAll('[data-info]:not([data-info="profile"])').forEach((button) =>
         button.addEventListener("click", () => {
           let [title, text] = contents[button.dataset.info];
           if (button.dataset.info === "profile") {

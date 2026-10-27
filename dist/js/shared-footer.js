@@ -45,7 +45,7 @@ function showRecords() {
   const list = document.createElement("ul");
   list.className = "game-record-list";
   for (const [name, stats, practice] of [
-    ["CAJINODUEL", account?.stats, false],
+    ["ブラックジャック", records.blackjack?.matches != null ? records.blackjack : account?.stats, false],
     ["ルーレット", records.roulette, false],
     ["スロット", records.slot, false],
   ]) {
@@ -56,14 +56,14 @@ function showRecords() {
     summary.textContent = `${stats?.matches ?? 0}回　${stats?.wins ?? 0}勝 / ${stats?.losses ?? 0}敗 / ${stats?.draws ?? 0}分`;
     const gain = document.createElement("span");
     gain.className = "record-chip-gain";
-    const gains = name === "CAJINODUEL" ? records.blackjack : stats;
+    const gains = name === "ブラックジャック" ? records.blackjack : stats;
     gain.textContent = `獲得チップ：${Number(gains?.gained ?? 0).toLocaleString("ja-JP")} CHIP`;
     item.append(title, summary, gain);
     list.append(item);
   }
   const note = document.createElement("small");
   note.textContent =
-    "獲得チップは記録開始後の配当合計（ベットの返却分を含む）です。ルーレット・スロットの勝敗は配当−ベットで判定。記録はこのブラウザのアカウントごとに保存します。";
+    "ブラックジャックの勝敗は全ラウンド終了後の最終結果で1ゲームとして集計します。獲得チップは記録開始後の配当合計（ベットの返却分を含む）です。ルーレット・スロットの勝敗は配当−ベットで判定。記録はこのブラウザのアカウントごとに保存します。";
   text.append(list, note);
   if (!dialog.open) dialog.showModal();
 }

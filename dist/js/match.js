@@ -1,3 +1,4 @@
+import { normalizeNickname, nicknameError } from "./nickname.js";
 import { websocketUrl, waitForBackend } from "./backend.js";
 const ACCOUNT_TOKEN_KEY = "casinoDuel.accountToken";
 const ACCOUNT_PROFILE_KEY = "casinoDuel.accountProfile";
@@ -18,6 +19,10 @@ export class MatchService extends EventTarget {
     this.socket = null;
     this.connected = false;
     this.retryTimer = null;
+    window.addEventListener("pagehide", () => {
+      this.pendingProfile = null;
+      this.socket?.close();
+    });
     this.token = localStorage.getItem(ACCOUNT_TOKEN_KEY);
     try {
       this.account = JSON.parse(localStorage.getItem(ACCOUNT_PROFILE_KEY)) ?? null;
@@ -60,6 +65,7 @@ export class MatchService extends EventTarget {
     socket.addEventListener("message", (event) => this.receive(event.data));
     socket.addEventListener("error", () => socket.close());
     socket.addEventListener("close", () => {
+      this.pendingProfile = null;
       this.connected = false;
       this.socket = null;
       this.status = "idle";
@@ -95,6 +101,7 @@ export class MatchService extends EventTarget {
       return;
     }
     if (message.type === "account") {
+      this.pendingProfile = null;
       this.setAccount(message.account);
       return;
     }
@@ -215,15 +222,17 @@ export class MatchService extends EventTarget {
     if (this.peerId) this.send({ type: "action", to: this.peerId, payload });
   }
 
+  saveRoundResult(payload) {
+    this.send({ type: "roundResult", payload });
+  }
+
   saveResult(payload) {
     this.send({ type: "result", payload });
   }
 
   register(name) {
-    const nickname = String(name ?? "")
-      .trim()
-      .slice(0, 16);
-    if (!nickname) return false;
+    const nickname = normalizeNickname(name);
+    if (nicknameError(nickname)) return false;
     this.token = crypto.randomUUID();
     this.account = {
       name: nickname,
@@ -249,10 +258,8 @@ export class MatchService extends EventTarget {
   }
 
   rename(name) {
-    const nickname = String(name ?? "")
-      .trim()
-      .slice(0, 16);
-    if (!nickname) return false;
+    const nickname = normalizeNickname(name);
+    if (nicknameError(nickname)) return false;
     this.send({ type: "rename", name: nickname });
     return true;
   }

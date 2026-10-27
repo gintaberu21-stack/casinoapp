@@ -92,7 +92,29 @@ export class GameUI {
     );
   }
 
+  setPerspective(game) {
+    const viewer = game.mode === "duo" ? game.actor : "player";
+    this.viewActor = viewer;
+    this.seatElements ??= { ...this.els };
+    const swapped = viewer === "dealer";
+    for (const actor of ["player", "dealer"]) {
+      const slot = swapped ? opponentOf(actor) : actor;
+      for (const suffix of ["hand", "hand-name", "score", "chip-count", "chip-stack", "debt-count", "bet-stack"]) {
+        this.els[`${actor}-${suffix}`] = this.seatElements[`${slot}-${suffix}`];
+      }
+    }
+    const labels = this.seatLabels(game);
+    this.els["player-hand-name"].textContent = labels.player;
+    this.els["dealer-hand-name"].textContent = labels.dealer;
+    this.els["my-chip-label"].textContent = labels[viewer];
+    this.els["rival-chip-label"].textContent = labels[opponentOf(viewer)];
+  }
+
   cardIsHidden(game, target, index) {
+    if (game.mode === "duo") {
+      if (this.handoffPending) return true;
+      return !game.dealerRevealed && target !== (this.viewActor ?? game.actor);
+    }
     if (target !== "dealer" || index !== 1 || game.dealerRevealed) return false;
     if (game.mode === "online") return true;
     return !(game.mode === "duo" && game.actor === "dealer");
@@ -100,6 +122,7 @@ export class GameUI {
 
   prepareRound(game, onSpecial) {
     this.currentNames = game.names;
+    this.setPerspective(game);
     this.onSpecial = onSpecial;
     this.els["dealer-hand"].replaceChildren();
     this.els["player-hand"].replaceChildren();
@@ -109,8 +132,8 @@ export class GameUI {
     this.updateWager(game);
     this.els["round-progress"].textContent = `GAME ${game.matchRound} / ${MATCH_ROUNDS}`;
     const labels = this.seatLabels(game);
-    this.els["rival-chip-label"].textContent = labels.dealer;
-    this.els["my-chip-label"].textContent = labels.player;
+    this.els["rival-chip-label"].textContent = labels[opponentOf(this.viewActor)];
+    this.els["my-chip-label"].textContent = labels[this.viewActor];
     this.els["dealer-hand-name"].textContent = labels.dealer;
     this.els["player-hand-name"].textContent = labels.player;
     this.updateScores(game);
@@ -171,6 +194,11 @@ export class GameUI {
 
   revealDealer(game) {
     game.dealerRevealed = true;
+    if (game.mode === "duo") {
+      this.renderHands(game);
+      this.cue("flip");
+      return wait(700);
+    }
     const hidden = this.els["dealer-hand"].querySelector(".is-face-down");
     if (!hidden) {
       this.updateScores(game);
@@ -185,17 +213,21 @@ export class GameUI {
   }
 
   updateScores(game) {
-    this.els["player-score"].textContent = game.score("player");
+    const hidePlayer = game.mode === "duo" && !game.dealerRevealed && (this.handoffPending || this.viewActor !== "player");
+    this.els["player-score"].textContent = hidePlayer ? "?" : game.score("player");
+    this.els["player-score"].classList.toggle("is-hidden", hidePlayer);
     // オンライン対戦では両端末が同じ合計点を常に表示する。
     // 以前は相手の伏せカードに合わせて最初の1枚分だけを表示していたため、
     // HIT後の合計がSHOWDOWNまで同期していないように見えていた。
-    const visibleDealer =
+    const visibleDealer = game.mode === "duo"
+      ? !this.handoffPending && (game.dealerRevealed || this.viewActor === "dealer")
+      :
       game.dealerRevealed ||
       game.mode === "online" ||
       (game.mode === "duo" && game.actor === "dealer");
     const dealerValue = visibleDealer
       ? game.score("dealer")
-      : game.dealer[0]
+      : game.mode !== "duo" && game.dealer[0]
         ? this.singleCardValue(game.dealer[0])
         : "?";
     this.els["dealer-score"].textContent = dealerValue;
@@ -218,7 +250,7 @@ export class GameUI {
     const rival = game.bets?.dealer ?? own;
     this.renderChipCollection(this.els["player-bet-stack"], own.chips);
     this.renderChipCollection(this.els["dealer-bet-stack"], rival.chips);
-    this.els["player-win-payout"].textContent = `勝利時 ${game.winPayoutFor("player")}`;
+    this.els["player-win-payout"].textContent = `勝利時 ${game.winPayoutFor(this.viewActor ?? "player")}`;
   }
 
   async animateChipPayout(result) {
@@ -336,6 +368,19 @@ export class GameUI {
     this.els["next-card-preview"].hidden = false;
   }
 
+  updateTurnTimer(game) {
+    const node = this.els["turn-timer"];
+    if (!node) return;
+    node.hidden = !game.turnDeadline || game.phase !== "playing";
+    if (node.hidden) return;
+    const remaining = Math.max(0, game.turnDeadline - Date.now());
+    const actor = game.actor;
+    const name = this.seatLabels(game)[actor];
+    const count = game.turnTimeouts?.[actor] ?? 0;
+    node.classList.toggle("is-warning", remaining <= 5000);
+    node.textContent = `${name}：残り${Math.ceil(remaining / 1000)}秒（時間切れ${count}/2回）${remaining <= 5000 ? " ⚠ 時間に注意" : ""}`;
+  }
+
   setActions(enabled, actor) {
     this.els["hit-button"].disabled = !enabled;
     this.els["stand-button"].disabled = !enabled;
@@ -347,8 +392,18 @@ export class GameUI {
       ? "ディーラーが止まる"
       : "勝負する";
     this.els["round-status"].textContent = dealerTurn ? "DEALER TURN" : "PLAYER TURN";
+    const duo = document.body.dataset.mode === "duo";
+    const labels = this.seatLabels({ mode: duo ? "duo" : document.body.dataset.mode, names: this.currentNames });
+    this.els["game-turn-label"].hidden = !duo;
+    if (duo) {
+      const turn = `${labels[actor]} のターン`;
+      this.els["game-turn-label"].textContent = turn;
+      this.els["round-status"].textContent = turn;
+      this.els["hit-button"].querySelector("small").textContent = "カードを引く";
+      this.els["stand-button"].querySelector("small").textContent = "ここで止める";
+    }
     const online = document.body.dataset.mode === "online";
-    this.els["dealer-kicker"].textContent = online
+    this.els["dealer-kicker"].textContent = duo ? labels[opponentOf(this.viewActor)] : online
       ? this.seatLabels({ mode: "online", names: this.currentNames }).dealer
       : dealerTurn && document.body.dataset.mode === "duo"
         ? "PLAYER 2"
@@ -468,7 +523,11 @@ export class GameUI {
     return firstActor;
   }
 
-  async requestHandoff(actor) {
+  async requestHandoff(actor, game) {
+    this.handoffPending = true;
+    this.renderHands(game);
+    this.els["special-list"].replaceChildren();
+    this.els["next-card-preview"].hidden = true;
     const actorName = this.currentNames?.[actor] ?? (actor === "player" ? "PLAYER 1" : "PLAYER 2");
     this.els["handoff-overlay"].hidden = false;
     this.els["handoff-overlay"].querySelector("h2").textContent = `${actorName} TURN`;
@@ -478,6 +537,10 @@ export class GameUI {
     await new Promise((resolve) =>
       this.els["dealer-ready"].addEventListener("click", resolve, { once: true }),
     );
+    this.handoffPending = false;
+    this.setPerspective(game);
+    this.renderHands(game);
+    this.renderSpecials(game);
     this.els["handoff-overlay"].hidden = true;
   }
 
@@ -634,7 +697,7 @@ export class GameUI {
             : mood === "loss"
               ? "You lose"
               : "PUSH";
-    this.els["result-kicker"].textContent = `FINAL • ${MATCH_ROUNDS} GAMES`;
+    this.els["result-kicker"].textContent = result.forfeit ? "TIMEOUT PENALTY" : `FINAL / ${MATCH_ROUNDS} GAMES`;
     this.els["result-title"].textContent = title;
     const debt = result.debts ?? { player: 0, dealer: 0 };
     const net = result.netWorth ?? {
@@ -694,7 +757,32 @@ export class GameUI {
             });
             row.append(button);
           }
-          group.append(label, row);
+          const controls = document.createElement("div");
+          controls.className = "chip-picker-controls";
+          const count = document.createElement("span");
+          count.className = "chip-picker-selected-count";
+          count.textContent = `選択 ${selected[type]} / ${game.inventories[actor][type]}枚`;
+          const actions = [
+            { label: "+10枚", count: selected[type] + 10 },
+            { label: "+100枚", count: selected[type] + 100 },
+            { label: "全選択", count: game.inventories[actor][type] },
+            { label: "解除", count: 0 },
+          ];
+          for (const action of actions) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "chip-picker-bulk-button";
+            button.textContent = action.label;
+            button.setAttribute("aria-label", `${chipType.label} ${action.label}`);
+            const nextCount = Math.min(game.inventories[actor][type], action.count);
+            button.disabled = nextCount === selected[type];
+            button.addEventListener("click", () => {
+              selected[type] = nextCount;
+              render();
+            });
+            controls.append(button);
+          }
+          group.append(label, row, count, controls);
           return group;
         });
       list.replaceChildren(...groups);
