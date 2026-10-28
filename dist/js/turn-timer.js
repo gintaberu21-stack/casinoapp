@@ -1,4 +1,4 @@
-export const TURN_LIMIT_MS = 15000;
+export const TURN_LIMIT_MS = 30000;
 export const TURN_WARNING_MS = 5000;
 
 export class TurnTimer {

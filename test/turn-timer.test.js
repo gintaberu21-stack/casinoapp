@@ -4,17 +4,17 @@ import { CasinoDuelGame, inventoryValue } from "../dist/js/game.js";
 import { TurnTimer, TURN_LIMIT_MS } from "../dist/js/turn-timer.js";
 import { GameUI } from "../dist/js/ui.js";
 
-test("turn clock expires once after 15 seconds and stale clocks cannot expire later turns", () => {
+test("turn clock expires once after 30 seconds and stale clocks cannot expire later turns", () => {
   let now = 0, tick, expired = 0, remaining;
   const timer = new TurnTimer({ now: () => now, schedule: fn => { tick = fn; return 1; }, cancel() {} });
   timer.start(TURN_LIMIT_MS, { onTick: ms => remaining = ms, onTimeout: () => expired++ });
-  assert.equal(remaining, 15000);
+  assert.equal(remaining, 30000);
   const oldTick = tick;
-  now = 10000; tick(); assert.equal(remaining, 5000); assert.equal(expired, 0);
-  now = 15000; tick(); tick(); assert.equal(expired, 1);
-  timer.start(30000, { onTimeout: () => expired++ });
+  now = 25000; tick(); assert.equal(remaining, 5000); assert.equal(expired, 0);
+  now = 30000; tick(); tick(); assert.equal(expired, 1);
+  timer.start(60000, { onTimeout: () => expired++ });
   oldTick(); assert.equal(expired, 1);
-  timer.stop(); now = 40000; tick(); assert.equal(expired, 1);
+  timer.stop(); now = 70000; tick(); assert.equal(expired, 1);
 });
 
 test("timeout warning appears at five seconds and includes the game-wide count", () => {
@@ -71,7 +71,7 @@ test("first timeout passes the turn; the same player's second timeout ends the g
   let passed = 0, forfeited;
   const context = vm.createContext({
     game, onlineRole: "host", matchInterrupted: false, rejectTurnChoice: null, onlinePendingSpecial: {},
-    turnRemaining: 15000, turnTimer: { stop() {} }, Date,
+    turnRemaining: 30000, turnTimer: { stop() {} }, Date,
     ui: { updateTurnTimer() {}, toast() {}, seatLabels: () => game.names,
       els: { "select-card-overlay": {}, "special-overlay": {} } },
     clearTurnLock() {}, passTurn: () => { passed++; game.actor = game.actor === "player" ? "dealer" : "player"; },
@@ -108,7 +108,7 @@ test("default browser timers keep their Window receiver", async () => {
     }
     ${source.replaceAll("export ", "")}
     const timer = new TurnTimer();
-    timer.start(Date.now() + 15000, {});
+    timer.start(Date.now() + 30000, {});
     timer.stop();
     if (scheduled !== 1 || cancelled !== 1) throw Error("timer lifecycle failed");
   `,context);
