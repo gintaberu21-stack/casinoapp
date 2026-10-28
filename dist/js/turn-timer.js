@@ -2,7 +2,7 @@ export const TURN_LIMIT_MS = 15000;
 export const TURN_WARNING_MS = 5000;
 
 export class TurnTimer {
-  constructor({ now = () => Date.now(), schedule = setInterval, cancel = clearInterval } = {}) {
+  constructor({ now = () => Date.now(), schedule = (callback, delay) => globalThis.setInterval(callback, delay), cancel = handle => globalThis.clearInterval(handle) } = {}) {
     this.now = now;
     this.schedule = schedule;
     this.cancel = cancel;

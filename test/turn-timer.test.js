@@ -90,3 +90,26 @@ test("first timeout passes the turn; the same player's second timeout ends the g
   assert.equal(forfeited, "player");
   assert.equal(passed, 2);
 });
+
+test("default browser timers keep their Window receiver", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const vm = await import("node:vm");
+  const source = await readFile(new URL("../dist/js/turn-timer.js",import.meta.url),"utf8");
+  const context = vm.createContext({});
+  vm.runInContext(`
+    let scheduled = 0, cancelled = 0;
+    function setInterval(callback, delay) {
+      if (this !== globalThis) throw new TypeError("Illegal invocation");
+      scheduled++; return 7;
+    }
+    function clearInterval(handle) {
+      if (this !== globalThis) throw new TypeError("Illegal invocation");
+      cancelled++;
+    }
+    ${source.replaceAll("export ", "")}
+    const timer = new TurnTimer();
+    timer.start(Date.now() + 15000, {});
+    timer.stop();
+    if (scheduled !== 1 || cancelled !== 1) throw Error("timer lifecycle failed");
+  `,context);
+});
