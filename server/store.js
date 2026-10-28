@@ -1,3 +1,5 @@
+import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
+import path from "node:path";
 import { roundChips, valueToInventory } from "../dist/js/game.js";
 const COUNTER_ID = "playerId";
 
@@ -9,6 +11,32 @@ export class Store {
   constructor(database) {
     this.database = database ?? null;
     this.memory = { counter: 0, players: new Map(), accounts: new Map(), matches: [] };
+  }
+
+  async enableLocalPersistence(filename) {
+    if (this.usesMongo) return;
+    let saved;
+    try { saved = JSON.parse(await readFile(filename, "utf8")); }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+    if (saved) {
+      if (!Array.isArray(saved.accounts)) throw Error("Invalid local account file");
+      this.memory.accounts = new Map(saved.accounts.map(account => [account.accountKey, account]));
+      this.memory.counter = Math.max(Number(saved.counter) || 0, ...saved.accounts.map(account => Number(account.playerId) || 0));
+    }
+    this.localAccountFile = filename;
+    this.localSaveQueue = Promise.resolve();
+  }
+  async persistLocalAccounts() {
+    if (!this.localAccountFile) return;
+    const contents = JSON.stringify({counter:this.memory.counter,accounts:[...this.memory.accounts.values()]});
+    const filename = this.localAccountFile;
+    const save = this.localSaveQueue.catch(() => {}).then(async () => {
+      await mkdir(path.dirname(filename), {recursive:true});
+      await writeFile(filename + ".tmp", contents, {mode:0o600});
+      await rename(filename + ".tmp", filename);
+    });
+    this.localSaveQueue = save;
+    await save;
   }
 
   get usesMongo() {
@@ -88,7 +116,7 @@ export class Store {
       createdAt: now,
       updatedAt: now,
     };
-    if (!this.usesMongo) this.memory.accounts.set(accountKey, account);
+    if (!this.usesMongo) { this.memory.accounts.set(accountKey, account); await this.persistLocalAccounts(); }
     else await this.database.collection("accounts").insertOne(account);
     return { ...account };
   }
@@ -102,7 +130,7 @@ export class Store {
     if (Object.hasOwn(changes, "debt")) safe.debt = roundChips(changes.debt);
     if (!this.usesMongo) {
       const account = [...this.memory.accounts.values()].find((entry) => entry.playerId === playerId);
-      if (account) Object.assign(account, safe);
+      if (account) { Object.assign(account, safe); await this.persistLocalAccounts(); }
       return account ? { ...account } : null;
     }
     return this.database
@@ -130,6 +158,7 @@ export class Store {
         account.gainedByGame[game] = (account.gainedByGame[game] ?? 0) + amount;
         account.updatedAt = new Date();
       }
+      await this.persistLocalAccounts();
       return { ...account };
     }
     const account = await this.database.collection("accounts").findOneAndUpdate(
@@ -162,6 +191,7 @@ export class Store {
       account.stats.matches += 1;
       account.stats[field] += 1;
       account.updatedAt = new Date();
+      await this.persistLocalAccounts();
       return { ...account };
     }
     return this.database

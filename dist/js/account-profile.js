@@ -54,7 +54,7 @@ if (dialog) {
     $("account-player-name").hidden = value;
     $("account-name-field").hidden = !value;
     $("account-picture-hint").hidden = !value;
-    $("account-picture-button").disabled = !value;
+    $("account-picture-button").disabled = !account?.playerId;
     $("account-edit").disabled = value || !account?.playerId;
     $("account-photo-crop").hidden = true;
     $("account-name-input").value = account?.name ?? "";
@@ -96,7 +96,11 @@ if (dialog) {
   $("account-close").addEventListener("click", close);
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
   dialog.addEventListener("click", event => { if (event.target === dialog) close(); });
-  function choosePhoto() { if (editing && !saving) $("account-photo-file").click(); }
+  function choosePhoto() {
+    if (saving || !account?.playerId) return;
+    if (!editing) setEditing(true);
+    $("account-photo-file").click();
+  }
   $("account-picture-button").addEventListener("click", choosePhoto);
   $("account-photo-select").addEventListener("click", choosePhoto);
   function redraw() {
@@ -166,7 +170,7 @@ if (dialog) {
       saving = false;
       controls.forEach(control => { control.disabled = false; });
       $("account-edit").disabled = editing || !account?.playerId;
-      $("account-picture-button").disabled = !editing;
+      $("account-picture-button").disabled = !account?.playerId;
     }
   });
   window.addEventListener("casino:account", event => { if (!editing) render(event.detail); });

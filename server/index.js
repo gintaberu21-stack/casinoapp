@@ -27,6 +27,8 @@ const database = await connect(process.env.MONGODB_URI).catch((error) => {
   return null;
 });
 const store = new Store(database);
+if (!database && !process.env.RENDER)
+  await store.enableLocalPersistence(path.join(currentDir, "..", ".data", "accounts.json"));
 await store.clearPlayers();
 console.log(
   `[db] ${store.usesMongo ? "MongoDBに接続しました" : "メモリ保存で動作中（MONGODB_URI未設定）"}`,
