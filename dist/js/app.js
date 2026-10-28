@@ -48,6 +48,12 @@ function renderAccount() {
   if (!account) return;
   ui.els["home-player-id"].textContent = account.playerId ? `ID ${account.playerId}` : "ID 接続中";
   ui.els["home-player-name"].textContent = account.name;
+  const avatar = ui.els["home-player-avatar"];
+  const hasAvatar = typeof account.avatar === "string" && account.avatar.startsWith("data:image/jpeg;base64,");
+  avatar.hidden = !hasAvatar;
+  ui.els["home-player-avatar-default"].hidden = hasAvatar;
+  if (hasAvatar) avatar.src = account.avatar;
+  else avatar.removeAttribute("src");
   ui.els["home-player-balance"].textContent =
     `${account.chips ?? 3000} CHIP${account.debt ? ` / 借金 ${account.debt}` : ""}`;
   ui.els["profile-id"].textContent = account.playerId ?? "接続中";

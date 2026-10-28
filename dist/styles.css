@@ -4168,3 +4168,6 @@ button {
 .hand-player-avatar img { width:100%; height:100%; object-fit:cover; }
 .hand-player-avatar svg { width:65%; height:65%; fill:currentColor; }
 @media(max-width:480px) { .hand-player-avatar { width:24px; height:24px; margin-right:6px; } }
+.profile-avatar { overflow:hidden; flex-shrink:0; }
+.profile-avatar img { width:100%; height:100%; object-fit:cover; }
+.profile-avatar svg { width:65%; height:65%; fill:currentColor; }
