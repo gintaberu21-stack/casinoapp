@@ -39,7 +39,7 @@ app.use((request, response, next) => {
   if (origin) response.vary("Origin");
   if (frontendOrigins.has(origin)) {
     response.setHeader("Access-Control-Allow-Origin", origin);
-    response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
     response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     if (request.method === "OPTIONS") return response.sendStatus(204);
   }
