@@ -180,9 +180,22 @@ export class MatchScreen {
     this.render();
   }
 
+  renderAvatar(container, account) {
+    container.replaceChildren();
+    const avatar = account?.avatar;
+    if (typeof avatar === "string" && avatar.startsWith("data:image/jpeg;base64,")) {
+      const image = document.createElement("img");
+      image.src = avatar;
+      image.alt = "";
+      container.append(image);
+    } else {
+      container.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="11" r="6"/><path d="M5 29v-3a11 11 0 0 1 22 0v3Z"/></svg>';
+    }
+  }
+
   showInvite(peerId) {
     this.els["invite-name"].textContent = this.service.player(peerId)?.name ?? `PLAYER ${peerId}`;
-    this.els["invite-overlay"].querySelector(".invite-suit").textContent = suitOf(peerId);
+    this.renderAvatar(this.els["invite-avatar"], this.service.player(peerId));
     this.els["invite-overlay"].hidden = false;
     this.ui.cue("notify");
   }
@@ -192,6 +205,8 @@ export class MatchScreen {
     const peer = this.service.player(peerId)?.name ?? `PLAYER ${peerId}`;
     this.els["room-host"].textContent = isHost ? me : peer;
     this.els["room-guest"].textContent = isHost ? peer : me;
+    this.renderAvatar(this.els["room-host-avatar"], isHost ? this.service.account : this.service.player(peerId));
+    this.renderAvatar(this.els["room-guest-avatar"], isHost ? this.service.player(peerId) : this.service.account);
     this.els["room-title"].textContent = "対戦部屋";
     this.els["room-start"].disabled = !isHost;
     this.els["room-start-note"].textContent = isHost ? "対戦開始" : "ホストの開始を待っています";

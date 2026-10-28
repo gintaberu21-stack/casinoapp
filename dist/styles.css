@@ -4194,3 +4194,21 @@ body[data-mode="duo"] .hand-player-avatar {
   body[data-mode="online"] .hand-player-avatar,
   body[data-mode="duo"] .hand-player-avatar { flex-basis:24px; }
 }
+/* Match request and room identities: profile picture left, name right. */
+.match-person { display:flex; align-items:center; justify-content:center; gap:12px; margin:18px 0 12px; min-width:0; }
+.match-person h2 { min-width:0; overflow-wrap:anywhere; text-align:left; font-size:clamp(18px,5vw,28px); }
+.match-profile-avatar, .room-seat .match-profile-avatar {
+  display:grid; place-items:center; flex-shrink:0; width:44px; height:44px;
+  border:1px solid #cba75e; border-radius:50%; overflow:hidden;
+  color:#edce8b; background:#211117;
+}
+.match-profile-avatar img { width:100%; height:100%; object-fit:cover; }
+.match-profile-avatar svg { width:65%; height:65%; fill:currentColor; }
+.room-seat { grid-template-columns:44px minmax(0,1fr); justify-items:start; align-items:center; column-gap:10px; min-width:0; text-align:left; }
+.room-seat .match-profile-avatar { grid-row:1 / 3; }
+.room-seat strong { grid-column:2; min-width:0; overflow-wrap:anywhere; }
+.room-seat small { grid-column:2; }
+@media(max-width:480px) {
+  .room-seats { grid-template-columns:minmax(0,1fr); gap:8px; }
+  .room-vs { text-align:center; }
+}
