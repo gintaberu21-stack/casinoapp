@@ -32,6 +32,7 @@ let pendingGuestBetResolve = null;
 let pendingGuestDebtResolve = null;
 let guestRenderedRound = 0;
 let guestStateQueue = Promise.resolve();
+let guestChoiceVersion = 0;
 let localRematchReady = false;
 let peerRematchReady = false;
 let rematchStarting = false;
@@ -474,7 +475,17 @@ async function useSpecial(id) {
 
 async function executeSpecial(id, isAi, supplied = null) {
   try { await executeSpecialAction(id, isAi, supplied); }
-  catch (error) { if (error.message !== "TURN_TIMEOUT") throw error; }
+  catch (error) {
+    if (error.message === "TURN_TIMEOUT") return;
+    console.error("Special action failed", error);
+    for (const overlay of ["special-overlay", "select-card-overlay"])
+      ui.els[overlay].hidden = true;
+    onlinePendingSpecial = null;
+    if (!matchInterrupted && game.phase === "playing") {
+      ui.renderHands(game);
+      await enterTurn(false);
+    }
+  }
 }
 
 async function executeSpecialAction(id, isAi, supplied = null) {
@@ -826,6 +837,7 @@ async function receiveHostState(payload) {
   const previousActor = game.actor;
   game.restore(payload.state);
   if (game.actor !== previousActor || game.phase !== "playing") {
+    guestChoiceVersion++;
     for (const id of ["select-card-overlay", "special-overlay"]) ui.els[id].hidden = true;
   }
   watchGuestTimer();
@@ -893,8 +905,14 @@ async function receiveHostState(payload) {
   ui.setActions(false, game.actor);
   if (payload.event === "chooseDiscard") {
     busy = true;
-    const cardId = await ui.chooseCards(game.player, "引いたあと、捨てる手札を1枚選択");
-    matchService.sendAction({ type: "discard", cardId });
+    const choiceVersion = ++guestChoiceVersion;
+    void ui.chooseCards(game.player, "引いたあと、捨てる手札を1枚選択")
+      .then(cardId => {
+        if (choiceVersion !== guestChoiceVersion || onlineRole !== "guest" ||
+            game.phase !== "playing" || game.actor !== "player") return;
+        matchService.sendAction({ type: "discard", cardId });
+      })
+      .catch(error => console.error("Discard selection failed", error));
     return;
   }
   if (payload.event === "standing") {
