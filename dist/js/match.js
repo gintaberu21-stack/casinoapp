@@ -161,6 +161,7 @@ export class MatchService extends EventTarget {
       .map((player) => ({
         id: player.playerId,
         name: player.name,
+        avatar: player.avatar ?? null,
         status: player.status,
         chips: player.chips,
         debt: player.debt,

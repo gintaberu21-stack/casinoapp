@@ -187,7 +187,7 @@ app.post("/api/slot/:action", (request, response) =>
 
 async function broadcastRoster() {
   const players = await store.listPlayers();
-  const payload = JSON.stringify({ type: "roster", players: players.map(({ avatar, ...player }) => player) });
+  const payload = JSON.stringify({ type: "roster", players: players });
   sockets.forEach((socket) => {
     if (socket.readyState === 1) socket.send(payload);
   });

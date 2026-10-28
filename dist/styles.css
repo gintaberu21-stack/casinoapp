@@ -4162,3 +4162,9 @@ button {
 .turn-timer.is-warning { color: #ff7777; font-weight: 800; background: #620b18; border-radius: 5px; padding: 2px 4px; }
 
 .nickname-error, #account-create-error { color: #ff6b7a; font-size: 13px; line-height: 1.6; }
+
+/* Account avatars next to blackjack player names. */
+.hand-player-avatar { display:inline-grid; place-items:center; vertical-align:middle; width:30px; height:30px; margin-right:8px; border:1px solid #cba75e; border-radius:50%; background:#211117; color:#edce8b; overflow:hidden; flex-shrink:0; }
+.hand-player-avatar img { width:100%; height:100%; object-fit:cover; }
+.hand-player-avatar svg { width:65%; height:65%; fill:currentColor; }
+@media(max-width:480px) { .hand-player-avatar { width:24px; height:24px; margin-right:6px; } }

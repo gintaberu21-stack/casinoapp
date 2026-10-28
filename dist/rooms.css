@@ -43,7 +43,7 @@ body {
   height: 4.9%;
 }
 .preview-profile {
-  left: 89.8%;
+  left: 80.2%;
   top: 2.2%;
   width: 7.6%;
   height: 3.8%;
@@ -272,7 +272,7 @@ dialog p {
 }
 
 .ranking-crown {
-  position: absolute; top: 2.2%; left:98%; width: 7.6%; height: 3.8%;
+  position: absolute; top: 2.2%; left: 89.8%; width: 7.6%; height: 3.8%;
   display: grid; place-items: center; padding: 0; border: 1px solid #d8b45c66;
   border-radius: 50%; background: #1b1010; color: #f4d071; cursor: pointer;
 }
@@ -374,3 +374,19 @@ dialog p {
 
 .account-profile-status.is-error, #lobby-account-error { color: #ff6b7a; }
 .account-name-field input[aria-invalid="true"] { border-color: #ff6b7a; }
+
+/* Replace the header controls baked into the lobby artwork. */
+.design-preview::before {
+  content: ""; position: absolute; left: 54%; top: 2%; width: 44%; height: 4.2%;
+  background: #100b0c; pointer-events: none;
+}
+.lobby-wallet { border: 1px solid #b5945466; }
+.preview-profile {
+  display: grid; place-items: center; background: #1b1010;
+  border: 1px solid #d8b45c66; color: #f4d071; overflow: hidden;
+}
+.profile-default-icon { width: 60%; height: 60%; fill: currentColor; }
+.preview-profile:has(img) .profile-default-icon { display: none; }
+.preview-profile img { position: absolute; inset: 0; }
+.design-preview::before { z-index: 1; }
+.lobby-wallet, .preview-profile, .ranking-crown { z-index: 2; }

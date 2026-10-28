@@ -16,6 +16,7 @@ function setup() {
   ui.createCard = (card, options) => ({ id: card.id, hidden: options.hidden });
   ui.renderChipCollection = (node, inventory) => { node.inventory = inventory; };
   ui.renderSpecials = () => {};
+  ui.renderPlayerAvatars = () => {};
   const game = { mode: "duo", actor: "player", dealerRevealed: false,
     names: { player: "PLAYER 1", dealer: "PLAYER 2" },
     player: [{ id: "p1" }, { id: "p2" }], dealer: [{ id: "d1" }, { id: "d2" }],

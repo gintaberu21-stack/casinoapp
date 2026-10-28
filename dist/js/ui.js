@@ -24,6 +24,27 @@ export class GameUI {
     this.currentNames = names;
   }
 
+  renderPlayerAvatars(game) {
+    if (!this.isVersus(game)) return;
+    for (const actor of ["player", "dealer"]) {
+      const label = this.els[`${actor}-hand-name`];
+      label.querySelector(".hand-player-avatar")?.remove();
+      const icon = document.createElement("span");
+      icon.className = "hand-player-avatar";
+      icon.setAttribute("aria-hidden", "true");
+      const avatar = game.avatars?.[actor];
+      if (typeof avatar === "string" && avatar.startsWith("data:image/jpeg;base64,")) {
+        const img = document.createElement("img");
+        img.src = avatar;
+        img.alt = "";
+        icon.append(img);
+      } else {
+        icon.innerHTML = '<svg viewBox="0 0 32 32"><circle cx="16" cy="11" r="6"/><path d="M5 29v-3a11 11 0 0 1 22 0v3Z"/></svg>';
+      }
+      label.prepend(icon);
+    }
+  }
+
   isVersus(game) {
     return game.mode === "duo" || game.mode === "online";
   }
@@ -105,7 +126,9 @@ export class GameUI {
     }
     const labels = this.seatLabels(game);
     this.els["player-hand-name"].textContent = labels.player;
+    this.renderPlayerAvatars(game);
     this.els["dealer-hand-name"].textContent = labels.dealer;
+    this.renderPlayerAvatars(game);
     this.els["my-chip-label"].textContent = labels[viewer];
     this.els["rival-chip-label"].textContent = labels[opponentOf(viewer)];
   }
@@ -136,6 +159,7 @@ export class GameUI {
     this.els["my-chip-label"].textContent = labels[this.viewActor];
     this.els["dealer-hand-name"].textContent = labels.dealer;
     this.els["player-hand-name"].textContent = labels.player;
+    this.renderPlayerAvatars(game);
     this.updateScores(game);
     this.renderSpecials(game, true);
     this.setActions(false, game.actor);

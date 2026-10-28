@@ -40,6 +40,7 @@ export class CasinoDuelGame {
     this.mode = "solo";
     this.difficulty = "normal";
     this.names = { player: "YOU", dealer: "DEALER" };
+    this.avatars = { player: null, dealer: null };
     this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
     this.inventories = { player: { ...STARTING_INVENTORY }, dealer: { ...STARTING_INVENTORY } };
     this.debts = { player: 0, dealer: 0 };
@@ -71,6 +72,7 @@ export class CasinoDuelGame {
       mode: "online",
       difficulty: this.difficulty,
       names: swapPair(this.names),
+      avatars: swapPair(this.avatars),
       chips: swapPair(this.chips),
       inventories: swapPair(this.inventories),
       debts: swapPair(this.debts),
@@ -102,6 +104,7 @@ export class CasinoDuelGame {
       "mode",
       "difficulty",
       "names",
+      "avatars",
       "chips",
       "inventories",
       "debts",
@@ -164,6 +167,7 @@ export class CasinoDuelGame {
     const player = profileOf("player", "YOU");
     const dealer = profileOf("dealer", "DEALER");
     this.names = { player: player.name, dealer: dealer.name };
+    this.avatars = { player: profiles.player?.avatar ?? null, dealer: profiles.dealer?.avatar ?? null };
     this.inventories = { player: player.inventory, dealer: dealer.inventory };
     this.chips = {
       player: inventoryValue(player.inventory),
