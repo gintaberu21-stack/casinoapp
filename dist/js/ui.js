@@ -1,3 +1,4 @@
+import { rankSnapshot, refreshRanks, lockRanks, unlockRanks, decorateRank } from "./rank-decoration.js";
 import { SPECIALS } from "./skills.js";
 import { MATCH_ROUNDS, CHIP_TYPES, inventoryValue } from "./game.js";
 
@@ -24,6 +25,22 @@ export class GameUI {
     this.currentNames = names;
   }
 
+  async beginRankDecorations() { this.rankVersion = (this.rankVersion ?? 0) + 1; await refreshRanks(); lockRanks(); }
+  beginGuestRankDecorations() { this.rankVersion = (this.rankVersion ?? 0) + 1; lockRanks(); }
+  captureRankDecorations(game, profiles) {
+    game.avatarPlayerIds = { player: profiles.player?.playerId ?? null, dealer: profiles.dealer?.playerId ?? null };
+    game.avatarRanks = { player: rankSnapshot.rank(game.avatarPlayerIds.player), dealer: rankSnapshot.rank(game.avatarPlayerIds.dealer) };
+  }
+  async finishRankDecorations(game) {
+    const version = this.rankVersion;
+    unlockRanks();
+    await refreshRanks();
+    if (version !== this.rankVersion) return;
+    game.avatarRanks = { player: rankSnapshot.rank(game.avatarPlayerIds?.player), dealer: rankSnapshot.rank(game.avatarPlayerIds?.dealer) };
+    this.renderPlayerAvatars(game);
+  }
+  cancelRankDecorations() { this.rankVersion = (this.rankVersion ?? 0) + 1; unlockRanks(); }
+
   renderPlayerAvatars(game) {
     if (!this.isVersus(game)) return;
     for (const actor of ["player", "dealer"]) {
@@ -41,6 +58,7 @@ export class GameUI {
       } else {
         icon.innerHTML = '<svg viewBox="0 0 32 32"><circle cx="16" cy="11" r="6"/><path d="M5 29v-3a11 11 0 0 1 22 0v3Z"/></svg>';
       }
+      if (game.avatarRanks?.[actor]) decorateRank(icon, game.avatarRanks[actor]);
       label.prepend(icon);
     }
   }

@@ -1,3 +1,4 @@
+import { trackRank } from "./rank-decoration.js";
 const SUITS = ["♠", "♦", "♥", "♣"];
 const suitOf = (id) => SUITS[(Number(id) - 1) % SUITS.length] ?? "♠";
 
@@ -170,6 +171,7 @@ export class MatchScreen {
       `<span class="player-main"><strong>${player.name}</strong>` +
       `<span class="player-meta">${state}<span>ID ${player.id}</span><span>全3ゲーム</span></span></span>` +
       `<span class="player-stat"><small>CHIP</small><b>${player.chips ?? 3000}<i>C</i></b></span>`;
+    this.renderAvatar(row.querySelector(".player-badge"), { ...player, playerId: player.id });
     row.addEventListener("click", () => this.invite(player));
     return row;
   }
@@ -191,6 +193,7 @@ export class MatchScreen {
     } else {
       container.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="11" r="6"/><path d="M5 29v-3a11 11 0 0 1 22 0v3Z"/></svg>';
     }
+    trackRank(container, account?.playerId);
   }
 
   showInvite(peerId) {

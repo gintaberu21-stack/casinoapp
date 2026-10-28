@@ -1,3 +1,4 @@
+import { trackRank, refreshRanks } from "./rank-decoration.js";
 import { normalizeNickname, nicknameError } from "./nickname.js";
 import { apiFetch } from "./backend.js";
 import { syncWalletResponse } from "./shared-wallet.js";
@@ -33,6 +34,8 @@ if (dialog) {
   function render(current = cachedAccount()) {
     account = current;
     updateHeader(current);
+    trackRank(opener, current?.playerId);
+    trackRank($("account-picture-button"), current?.playerId);
     $("account-player-name").textContent = current?.name ?? "プレイヤー";
     $("account-player-id").textContent = current?.playerId ?? "—";
     $("account-player-chips").textContent = Number(current?.chips ?? 0).toLocaleString("ja-JP");
@@ -171,4 +174,5 @@ if (dialog) {
     if (event.key === "casinoDuel.accountProfile" && !editing) render();
   });
   render();
+  void refreshRanks();
 }

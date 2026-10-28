@@ -41,6 +41,8 @@ export class CasinoDuelGame {
     this.difficulty = "normal";
     this.names = { player: "YOU", dealer: "DEALER" };
     this.avatars = { player: null, dealer: null };
+    this.avatarRanks = { player: 0, dealer: 0 };
+    this.avatarPlayerIds = { player: null, dealer: null };
     this.chips = { player: STARTING_CHIPS, dealer: STARTING_CHIPS };
     this.inventories = { player: { ...STARTING_INVENTORY }, dealer: { ...STARTING_INVENTORY } };
     this.debts = { player: 0, dealer: 0 };
@@ -73,6 +75,8 @@ export class CasinoDuelGame {
       difficulty: this.difficulty,
       names: swapPair(this.names),
       avatars: swapPair(this.avatars),
+      avatarRanks: swapPair(this.avatarRanks),
+      avatarPlayerIds: swapPair(this.avatarPlayerIds),
       chips: swapPair(this.chips),
       inventories: swapPair(this.inventories),
       debts: swapPair(this.debts),
@@ -105,6 +109,8 @@ export class CasinoDuelGame {
       "difficulty",
       "names",
       "avatars",
+      "avatarRanks",
+      "avatarPlayerIds",
       "chips",
       "inventories",
       "debts",

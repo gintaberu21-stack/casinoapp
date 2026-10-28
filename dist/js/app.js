@@ -1,3 +1,4 @@
+import { trackRank, refreshRanks } from "./rank-decoration.js";
 import { normalizeNickname, nicknameError } from "./nickname.js";
 import { CasinoDuelGame, DIFFICULTY_PAYOUTS } from "./game.js";
 import { getSpecial } from "./skills.js";
@@ -50,6 +51,7 @@ function renderAccount() {
   ui.els["home-player-name"].textContent = account.name;
   const avatar = ui.els["home-player-avatar"];
   const hasAvatar = typeof account.avatar === "string" && account.avatar.startsWith("data:image/jpeg;base64,");
+  trackRank(avatar.parentElement, account.playerId);
   avatar.hidden = !hasAvatar;
   ui.els["home-player-avatar-default"].hidden = hasAvatar;
   if (hasAvatar) avatar.src = account.avatar;
@@ -170,6 +172,9 @@ async function startGame(options = {}) {
   localRematchReady = false;
   peerRematchReady = false;
   rematchStarting = false;
+  busy = true;
+  if (options.role === "guest") ui.beginGuestRankDecorations?.();
+  else await ui.beginRankDecorations?.();
   onlineRole = options.role ?? null;
   ui.setOnlineRole(onlineRole);
   guestRenderedRound = 0;
@@ -199,6 +204,7 @@ async function startGame(options = {}) {
       ? { name: "PLAYER 2", chips: 3000, inventory: { red: 5, blue: 3, black: 1 }, debt: 0 }
       : { name: "DEALER", chips: 3000, inventory: { red: 5, blue: 3, black: 1 }, debt: 0 });
   game.startMatch({ player: own, dealer: rival });
+  ui.captureRankDecorations?.(game, { player: own, dealer: rival });
   ui.setNames(game.names);
   await wait(430);
   if (game.chips.player <= 0) {
@@ -636,6 +642,7 @@ async function finishRound({ forfeit = null } = {}) {
   if (matchInterrupted) return;
   if (result.matchComplete) {
     if (game.mode !== "duo") recordBlackjackMatch(result, recordMatchId);
+    void ui.finishRankDecorations?.(game);
     ui.showResult(result, game);
     syncState("result", result);
     if (game.mode !== "duo") matchService.saveResult({
@@ -712,6 +719,7 @@ async function nextRound() {
 }
 
 function returnToLobby() {
+  ui.cancelRankDecorations?.();
   turnSerial++;
   stopTurnTimer();
   busy = false;
@@ -932,6 +940,7 @@ async function receiveHostState(payload) {
   if (payload.event === "result") {
     recordBlackjackRound(payload.result, `${recordMatchId}:${payload.result?.round}`);
     recordBlackjackMatch(payload.result, recordMatchId);
+    void ui.finishRankDecorations?.(game);
     ui.showResult(payload.result, game);
     busy = true;
     return;
@@ -1125,7 +1134,7 @@ matchService.addEventListener("left", interruptMatch);
 matchService.addEventListener("connection", (event) => {
   if (!event.detail.connected) interruptMatch();
 });
-matchService.addEventListener("account", () => renderAccount());
+matchService.addEventListener("account", () => { renderAccount(); void refreshRanks(); });
 matchService.addEventListener("welcome", () => {
   ui.els["account-create-overlay"].hidden = true;
   renderAccount();
