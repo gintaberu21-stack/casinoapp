@@ -71,8 +71,7 @@ test("square avatar crops stay in bounds for portrait, landscape, zoom and edge 
 
 async function profileUI({ put } = {}) {
   const source = (await readFile(new URL("../dist/js/account-profile.js", import.meta.url), "utf8"))
-    .replace(/^import .*;\r?\n/gm, "").replace("export function avatarCrop", "function avatarCrop")
-    .replace('import("./avatar-gestures.js")', "loadGestures()");
+    .replace(/^import .*;\r?\n/gm, "").replace("export function avatarCrop", "function avatarCrop");
   const elements = new Map();
   function element() {
     return { hidden: false, disabled: false, children: [], listeners: {}, classList: {add(){}, remove(){}, toggle(){}},
@@ -99,7 +98,6 @@ async function profileUI({ put } = {}) {
     clearTimeout: id => timers.delete(id),
     trackRank: (node,id) => ranked.push([node,id]), refreshRanks: async()=>{},
     syncWalletResponse(){}, normalizeNickname: name=>name, nicknameError: ()=>null,
-    loadGestures: () => Promise.reject(Error("asset returned 404")),
     apiFetch: async(_url, options)=> options?.method === "PUT" && put ? put(options) :
       ({ok:true,headers:{get:()=>"application/json"},json:async()=>({account})}),
   });
@@ -108,7 +106,7 @@ async function profileUI({ put } = {}) {
   return {opener, ranked, get, timers, account};
 }
 
-test("profile still opens and restores its photo and rank targets when touch assets fail", async () => {
+test("profile opens and restores its photo and rank targets", async () => {
   const {opener, ranked, get} = await profileUI();
   assert.equal(opener.children[0].src, avatar);
   assert.ok(ranked.some(([node,id])=>node===opener&&id===42));

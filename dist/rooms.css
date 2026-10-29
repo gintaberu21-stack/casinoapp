@@ -352,7 +352,6 @@ dialog p {
 .account-picture > .account-file-input { pointer-events: auto; border-radius: 50%; }
 .account-photo-select { position: relative; display: flex; align-items: center; justify-content: center; flex: 1; min-height: 42px; padding: 10px 13px; border: 1px solid #c8a45966; border-radius: 9px; background: #ffffff07; color: #f3d89a; font: 12px system-ui,sans-serif; cursor: pointer; }
 .account-photo-select:focus-within, .account-picture:focus-within { outline: 2px solid #eee5d2; outline-offset: 2px; }
-.account-picture.is-touch-cropping { touch-action: none; user-select: none; -webkit-user-select: none; }
 .account-picture img, .account-avatar-default { width: 100%; height: 100%; object-fit: cover; }
 .account-avatar-default { display: grid; place-items: center; color: #a58b70; background: linear-gradient(145deg,#43303b,#24171e); }
 .account-avatar-default svg { width: 75%; height: 75%; fill: currentColor; }

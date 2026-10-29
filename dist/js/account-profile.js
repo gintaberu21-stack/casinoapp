@@ -16,22 +16,7 @@ if (dialog) {
   let account = null, editing = false, saving = false, draftAvatar = null, image = null, objectUrl = null;
   let loadVersion = 0;
   let saveController = null;
-  const picture = $("account-picture-button");
   const photoInputs = [$("account-photo-file"), $("account-photo-file-avatar")];
-  const originalPictureHint = $("account-picture-hint").textContent;
-  let resetGestures = () => {}, gesturesReady = false;
-  const gestureOptions = {
-    enabled: () => editing && image !== null && !saving,
-    read: () => ({ width: image.naturalWidth, height: image.naturalHeight,
-      zoom: Number($("account-photo-zoom").value),
-      x: Number($("account-photo-x").value), y: Number($("account-photo-y").value) }),
-    write: crop => {
-      $("account-photo-zoom").value = String(crop.zoom);
-      $("account-photo-x").value = String(crop.x);
-      $("account-photo-y").value = String(crop.y);
-      redraw();
-    },
-  };
   function cachedAccount() {
     try { return JSON.parse(localStorage.getItem("casinoDuel.accountProfile")); } catch { return null; }
   }
@@ -61,9 +46,6 @@ if (dialog) {
     if (!editing) showAvatar(current?.avatar);
   }
   function releaseImage() {
-    resetGestures();
-    picture.classList.remove("is-touch-cropping");
-    $("account-picture-hint").textContent = originalPictureHint;
     loadVersion++;
     if (objectUrl) URL.revokeObjectURL(objectUrl);
     objectUrl = null; image = null;
@@ -178,14 +160,11 @@ if (dialog) {
       await preview.decode();
       if (version !== loadVersion || !editing) return;
       image = preview;
-      picture.classList.toggle("is-touch-cropping", gesturesReady);
       $("account-photo-zoom").value = "1";
       $("account-photo-x").value = $("account-photo-y").value = "0";
       redraw();
       $("account-photo-crop").hidden = false;
-      if (gesturesReady && window.matchMedia("(pointer: coarse)").matches)
-        $("account-picture-hint").textContent = "1本指で移動・2本指で拡大／縮小";
-      status.textContent = "写真の位置と大きさを調整して保存してください。";
+      status.textContent = "拡大・左右・上下のスライダーで写真を調整して保存してください。";
     } catch { status.textContent = "写真を読み込めませんでした。別の写真を選んでください。"; }
   }
   for (const input of photoInputs) input.addEventListener("change", selectPhoto);
@@ -234,12 +213,4 @@ if (dialog) {
   });
   render();
   void refreshRanks();
-  // Editing gestures must never prevent the profile/photo/rank UI from loading.
-  void import("./avatar-gestures.js").then(({ bindAvatarGestures }) => {
-    resetGestures = bindAvatarGestures(picture, gestureOptions);
-    gesturesReady = true;
-  }).catch(() => {
-    // Keep the existing range controls available if an asset fails to load.
-    picture.classList.remove("is-touch-cropping");
-  });
 }
