@@ -2,6 +2,7 @@ import { trackRank, refreshRanks } from "./rank-decoration.js";
 import { normalizeNickname, nicknameError } from "./nickname.js";
 import { apiFetch } from "./backend.js";
 import { syncWalletResponse } from "./shared-wallet.js";
+import { bindAvatarGestures } from "./avatar-gestures.js";
 
 export function avatarCrop(width, height, zoom = 1, x = 0, y = 0) {
   const size = Math.min(width, height) / Math.max(1, Math.min(3, zoom));
@@ -15,6 +16,20 @@ if (dialog) {
   const status = $("account-profile-status");
   let account = null, editing = false, saving = false, draftAvatar = null, image = null, objectUrl = null;
   let loadVersion = 0;
+  const picture = $("account-picture-button");
+  const originalPictureHint = $("account-picture-hint").textContent;
+  const resetGestures = bindAvatarGestures(picture, {
+    enabled: () => editing && image !== null && !saving,
+    read: () => ({ width: image.naturalWidth, height: image.naturalHeight,
+      zoom: Number($("account-photo-zoom").value),
+      x: Number($("account-photo-x").value), y: Number($("account-photo-y").value) }),
+    write: crop => {
+      $("account-photo-zoom").value = String(crop.zoom);
+      $("account-photo-x").value = String(crop.x);
+      $("account-photo-y").value = String(crop.y);
+      redraw();
+    },
+  });
   function cachedAccount() {
     try { return JSON.parse(localStorage.getItem("casinoDuel.accountProfile")); } catch { return null; }
   }
@@ -43,6 +58,9 @@ if (dialog) {
     if (!editing) showAvatar(current?.avatar);
   }
   function releaseImage() {
+    resetGestures();
+    picture.classList.remove("is-touch-cropping");
+    $("account-picture-hint").textContent = originalPictureHint;
     loadVersion++;
     if (objectUrl) URL.revokeObjectURL(objectUrl);
     objectUrl = null; image = null;
@@ -132,10 +150,13 @@ if (dialog) {
       await preview.decode();
       if (version !== loadVersion || !editing) return;
       image = preview;
+      picture.classList.add("is-touch-cropping");
       $("account-photo-zoom").value = "1";
       $("account-photo-x").value = $("account-photo-y").value = "0";
       redraw();
       $("account-photo-crop").hidden = false;
+      if (window.matchMedia("(pointer: coarse)").matches)
+        $("account-picture-hint").textContent = "1本指で移動・2本指で拡大／縮小";
       status.textContent = "写真の位置と大きさを調整して保存してください。";
     } catch { status.textContent = "写真を読み込めませんでした。別の写真を選んでください。"; }
   });
