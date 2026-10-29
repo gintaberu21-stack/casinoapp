@@ -85,7 +85,8 @@ async function profileUI({ put } = {}) {
   function get(id) { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); }
   const opener = element(), ranked = [], timers = new Map();
   const controlIds = ["account-edit", "account-close", "account-edit-cancel", "account-edit-save",
-    "account-photo-select", "account-photo-remove", "account-picture-button", "account-name-input"];
+    "account-photo-select", "account-photo-remove", "account-picture-button", "account-name-input",
+    "account-photo-file", "account-photo-file-avatar"];
   get("account-profile-dialog").querySelectorAll = selector => controlIds
     .filter(id => !selector.includes(":not") || !["account-close", "account-edit-cancel"].includes(id)).map(get);
   const account = {playerId:42,name:"Mobile",avatar,chips:3000};
@@ -118,6 +119,21 @@ test("profile still opens and restores its photo and rank targets when touch ass
   assert.equal(get("account-avatar").hidden, false);
   assert.equal(get("account-edit").disabled, false);
   assert.equal(get("account-player-chips").textContent, "3,000");
+});
+
+test("both native photo inputs prepare editing without preventing their picker activation", async () => {
+  const {get,opener} = await profileUI();
+  await opener.listeners.click();
+  for (const id of ["account-photo-file-avatar", "account-photo-file"]) {
+    let prevented = false;
+    get(id).listeners.click({preventDefault(){prevented=true;}});
+    assert.equal(prevented,false);
+    assert.equal(get("account-edit-form").hidden,false);
+    assert.equal(get(id).disabled,false);
+    assert.equal(typeof get(id).listeners.change,"function");
+    get("account-edit-cancel").listeners.click();
+    assert.equal(get("account-edit-form").hidden,true);
+  }
 });
 
 test("a stalled profile save times out, restores editing controls, and can be retried", async () => {

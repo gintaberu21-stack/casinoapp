@@ -348,6 +348,10 @@ dialog p {
 .account-picture-area { display: grid; justify-items: center; gap: 9px; }
 .account-picture { display: grid; place-items: center; width: min(100%, 150px); aspect-ratio: 1; border: 2px solid #d3ac61; border-radius: 50%; padding: 0; overflow: hidden; background: #301c25; cursor: pointer; }
 .account-picture:disabled { cursor: default; opacity: 1; }
+.account-file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 4; margin: 0; padding: 0; }
+.account-picture > .account-file-input { pointer-events: auto; border-radius: 50%; }
+.account-photo-select { position: relative; display: flex; align-items: center; justify-content: center; flex: 1; min-height: 42px; padding: 10px 13px; border: 1px solid #c8a45966; border-radius: 9px; background: #ffffff07; color: #f3d89a; font: 12px system-ui,sans-serif; cursor: pointer; }
+.account-photo-select:focus-within, .account-picture:focus-within { outline: 2px solid #eee5d2; outline-offset: 2px; }
 .account-picture.is-touch-cropping { touch-action: none; user-select: none; -webkit-user-select: none; }
 .account-picture img, .account-avatar-default { width: 100%; height: 100%; object-fit: cover; }
 .account-avatar-default { display: grid; place-items: center; color: #a58b70; background: linear-gradient(145deg,#43303b,#24171e); }
@@ -368,6 +372,7 @@ dialog p {
 .account-edit-actions #account-edit-save { border-color: #e2bd6d; background: linear-gradient(135deg,#bd8c39,#f4d58c); color: #2b1704; font-weight: 700; }
 .account-profile-dialog button:disabled { cursor: default; }
 .account-profile-dialog form button:disabled { opacity: .5; }
+.account-photo-select:has(input:disabled) { opacity: .5; }
 .account-profile-status { min-height: 1.5em; margin: 14px 0 0; color: #e9bdab; font: 12px/1.7 system-ui,sans-serif; }
 .preview-profile img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 1px solid #d6b572; background: #211117; }
 .account-profile-dialog [hidden] { display: none !important; }

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#140e10" />
     <title>ROYAL PLAY — ゲームロビー</title>
-    <link rel="stylesheet" href="./rooms.css?v=royal-play-1" />
-  <link rel="stylesheet" href="./rank-decoration.css" />
+    <link rel="stylesheet" href="./rooms.css?v=native-photo-picker-1" />
+  <link rel="stylesheet" href="./rank-decoration.css?v=native-photo-picker-1" />
   </head>
   <body>
     <main class="design-preview" aria-label="ROYAL PLAY ゲームロビーのデザインプレビュー">
@@ -108,16 +108,16 @@
           <p class="account-chips"><strong id="account-player-chips">—</strong><span>CHIP</span></p>
         </section>
         <div class="account-picture-area">
-          <button class="account-picture" id="account-picture-button" type="button" aria-label="アイコン写真を選ぶ" disabled>
+          <label class="account-picture" id="account-picture-button">
+            <input id="account-photo-file-avatar" class="account-file-input" type="file" accept="image/*" aria-label="アイコン写真を選ぶ" disabled>
             <img id="account-avatar" alt="プレイヤーのアイコン" hidden>
             <span class="account-avatar-default" id="account-avatar-default" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="35" r="17"/><path d="M19 90v-8a31 31 0 0 1 62 0v8Z"/></svg></span>
-          </button>
+          </label>
           <span class="account-picture-hint" id="account-picture-hint" hidden>タップして写真を変更</span>
         </div>
       </div>
       <form id="account-edit-form" hidden novalidate>
-        <input id="account-photo-file" type="file" accept="image/*" hidden>
-        <div class="account-photo-actions"><button id="account-photo-select" type="button">写真ライブラリから選択</button><button id="account-photo-remove" type="button">写真を削除</button></div>
+        <div class="account-photo-actions"><label id="account-photo-select" class="account-photo-select">写真ライブラリから選択<input id="account-photo-file" class="account-file-input" type="file" accept="image/*" aria-label="写真ライブラリから選択"></label><button id="account-photo-remove" type="button">写真を削除</button></div>
         <fieldset id="account-photo-crop" class="account-photo-crop" hidden><legend>写真の位置・大きさ</legend>
           <label>拡大<input id="account-photo-zoom" type="range" min="1" max="3" step="0.01" value="1"></label>
           <label>左右<input id="account-photo-x" type="range" min="-100" max="100" value="0"></label>
@@ -127,7 +127,7 @@
       </form>
       <p id="account-profile-status" class="account-profile-status" role="status" aria-live="polite"></p>
     </dialog>
-    <script type="module" src="./js/account-profile.js"></script>
+    <script type="module" src="./js/account-profile.js?v=native-photo-picker-1"></script>
     <dialog id="preview-info"
       ><button class="dialog-close" type="button" aria-label="閉じる">×</button
       ><h2 id="preview-title"></h2><p id="preview-text"></p

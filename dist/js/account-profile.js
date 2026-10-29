@@ -17,6 +17,7 @@ if (dialog) {
   let loadVersion = 0;
   let saveController = null;
   const picture = $("account-picture-button");
+  const photoInputs = [$("account-photo-file"), $("account-photo-file-avatar")];
   const originalPictureHint = $("account-picture-hint").textContent;
   let resetGestures = () => {}, gesturesReady = false;
   const gestureOptions = {
@@ -56,6 +57,7 @@ if (dialog) {
     $("account-player-id").textContent = current?.playerId ?? "—";
     $("account-player-chips").textContent = Number(current?.chips ?? 0).toLocaleString("ja-JP");
     $("account-edit").disabled = !current?.playerId || editing;
+    photoInputs.forEach(input => { input.disabled = saving || !current?.playerId; });
     if (!editing) showAvatar(current?.avatar);
   }
   function releaseImage() {
@@ -65,7 +67,7 @@ if (dialog) {
     loadVersion++;
     if (objectUrl) URL.revokeObjectURL(objectUrl);
     objectUrl = null; image = null;
-    $("account-photo-file").value = "";
+    photoInputs.forEach(input => { input.value = ""; });
   }
   function setEditing(value, focusName = true) {
     editing = value;
@@ -74,6 +76,7 @@ if (dialog) {
     $("account-name-field").hidden = !value;
     $("account-picture-hint").hidden = !value;
     $("account-picture-button").disabled = !account?.playerId;
+    photoInputs.forEach(input => { input.disabled = saving || !account?.playerId; });
     $("account-edit").disabled = value || !account?.playerId;
     $("account-photo-crop").hidden = true;
     $("account-name-input").value = account?.name ?? "";
@@ -138,13 +141,12 @@ if (dialog) {
   $("account-close").addEventListener("click", close);
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
   dialog.addEventListener("click", event => { if (event.target === dialog) close(); });
-  function choosePhoto() {
-    if (saving || !account?.playerId) return;
+  function preparePhotoSelection(event) {
+    if (saving || !account?.playerId) { event.preventDefault(); return; }
     if (!editing) setEditing(true, false);
-    $("account-photo-file").click();
   }
-  $("account-picture-button").addEventListener("click", choosePhoto);
-  $("account-photo-select").addEventListener("click", choosePhoto);
+  // Let the user's tap activate the real input; synthetic clicks are unreliable on mobile.
+  for (const input of photoInputs) input.addEventListener("click", preparePhotoSelection);
   function redraw() {
     if (!image) return;
     const crop = avatarCrop(image.naturalWidth, image.naturalHeight,
@@ -158,9 +160,11 @@ if (dialog) {
     draftAvatar = canvas.toDataURL("image/jpeg", 0.85);
     showAvatar(draftAvatar);
   }
-  $("account-photo-file").addEventListener("change", async () => {
-    const file = $("account-photo-file").files?.[0];
+  async function selectPhoto(event) {
+    if (saving || !account?.playerId) return;
+    const file = event.currentTarget.files?.[0];
     if (!file) return;
+    if (!editing) setEditing(true, false);
     if (!file.type.startsWith("image/") || file.size > 20 * 1024 * 1024) {
       status.textContent = "20MB以下の写真を選んでください。"; return;
     }
@@ -183,7 +187,8 @@ if (dialog) {
         $("account-picture-hint").textContent = "1本指で移動・2本指で拡大／縮小";
       status.textContent = "写真の位置と大きさを調整して保存してください。";
     } catch { status.textContent = "写真を読み込めませんでした。別の写真を選んでください。"; }
-  });
+  }
+  for (const input of photoInputs) input.addEventListener("change", selectPhoto);
   for (const id of ["account-photo-zoom", "account-photo-x", "account-photo-y"])
     $(id).addEventListener("input", redraw);
   $("account-photo-remove").addEventListener("click", () => {
@@ -220,6 +225,7 @@ if (dialog) {
       controls.forEach(control => { control.disabled = false; });
       $("account-edit").disabled = editing || !account?.playerId;
       $("account-picture-button").disabled = !account?.playerId;
+      photoInputs.forEach(input => { input.disabled = !account?.playerId; });
     }
   });
   window.addEventListener("casino:account", event => { if (!editing) render(event.detail); });

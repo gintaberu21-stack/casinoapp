@@ -10,6 +10,7 @@
 }
 .rank-laurel .rank-frame-image[hidden] { display:none !important; }
 .preview-profile > *, .account-picture > * { pointer-events:none; }
+.account-picture > .account-file-input { pointer-events:auto; }
 /* Header: allow the photo and its full outer frame between the wallet and crown. */
 .lobby-wallet { left:54.5%; width:20.8%; }
 .preview-profile { left:80.2%; }
