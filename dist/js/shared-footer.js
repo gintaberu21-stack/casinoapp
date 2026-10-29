@@ -1,4 +1,4 @@
-import { readGameRecords, localWinRate } from "./game-records.js";
+import { readGameRecords, localWinRate } from "./game-records.js?v=local-win-rate-1";
 const stylesheet = document.createElement("link");
 stylesheet.rel = "stylesheet";
 stylesheet.href = new URL("../shared-footer.css?v=local-win-rate-1", import.meta.url).href;

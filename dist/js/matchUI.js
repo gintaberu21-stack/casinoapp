@@ -1,5 +1,5 @@
 import { trackRank } from "./rank-decoration.js";
-import { localWinRate } from "./game-records.js";
+import { localWinRate } from "./game-records.js?v=local-win-rate-1";
 const SUITS = ["♠", "♦", "♥", "♣"];
 const suitOf = (id) => SUITS[(Number(id) - 1) % SUITS.length] ?? "♠";
 

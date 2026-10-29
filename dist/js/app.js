@@ -6,8 +6,8 @@ import { GameUI } from "./ui.js";
 import { scoreHand } from "./deck.js";
 import { installSoundBoard } from "./sound.js";
 import { MatchService } from "./match.js";
-import { MatchScreen } from "./matchUI.js";
-import { recordBlackjackRound, recordBlackjackMatch } from "./game-records.js";
+import { MatchScreen } from "./matchUI.js?v=local-win-rate-2";
+import { recordBlackjackRound, recordBlackjackMatch } from "./game-records.js?v=local-win-rate-1";
 
 import { TurnTimer, TURN_LIMIT_MS } from "./turn-timer.js";
 
@@ -51,11 +51,14 @@ function renderAccount() {
   ui.els["home-player-name"].textContent = account.name;
   const avatar = ui.els["home-player-avatar"];
   const hasAvatar = typeof account.avatar === "string" && account.avatar.startsWith("data:image/jpeg;base64,");
-  trackRank(avatar.parentElement, account.playerId);
-  avatar.hidden = !hasAvatar;
-  ui.els["home-player-avatar-default"].hidden = hasAvatar;
-  if (hasAvatar) avatar.src = account.avatar;
-  else avatar.removeAttribute("src");
+  if (avatar) {
+    trackRank(avatar.parentElement, account.playerId);
+    avatar.hidden = !hasAvatar;
+    if (hasAvatar) avatar.src = account.avatar;
+    else avatar.removeAttribute("src");
+  }
+  const defaultAvatar = ui.els["home-player-avatar-default"];
+  if (defaultAvatar) defaultAvatar.hidden = hasAvatar;
   ui.els["home-player-balance"].textContent =
     `${account.chips ?? 3000} CHIP${account.debt ? ` / 借金 ${account.debt}` : ""}`;
   ui.els["profile-id"].textContent = account.playerId ?? "接続中";
