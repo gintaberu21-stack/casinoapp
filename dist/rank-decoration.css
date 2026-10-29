@@ -94,3 +94,15 @@ body[data-mode] .hand-player-avatar { margin:12px 14px; }
 .account-profile-dialog.rank-panel > .dialog-close { top:44px; z-index:1; }
 .account-profile-dialog.rank-panel > .account-edit { left:76px; }
 .account-profile-dialog.rank-panel > .dialog-close { right:76px; }
+
+/* Give the account name priority over the brand on narrow lobby headers. */
+@media(max-width:600px) {
+  .design-preview::before { left:3%; top:1.5%; width:97%; height:4.8%; }
+  .lobby-brand-title { width:24%; font-size:3.4vw; z-index:2; }
+  .lobby-wallet { left:32%; width:42%; }
+  .design-preview .lobby-wallet {
+    top:2%; height:4.2%; flex-direction:column;
+    justify-content:center; gap:0; line-height:1.15;
+  }
+  .lobby-wallet-name { flex-shrink:0; max-width:100%; }
+}
