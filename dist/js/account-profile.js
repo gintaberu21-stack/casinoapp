@@ -38,6 +38,8 @@ if (dialog) {
     updateHeader(current);
     trackRank(opener, current?.playerId);
     trackRank($("account-picture-button"), current?.playerId);
+    trackRank($("lobby-wallet"), current?.playerId);
+    trackRank(dialog, current?.playerId);
     $("account-player-name").textContent = current?.name ?? "プレイヤー";
     $("account-player-id").textContent = current?.playerId ?? "—";
     $("account-player-chips").textContent = Number(current?.chips ?? 0).toLocaleString("ja-JP");

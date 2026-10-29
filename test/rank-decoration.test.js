@@ -2,6 +2,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { RankSnapshot } from "../dist/js/rank-decoration.js";
 import { CasinoDuelGame } from "../dist/js/game.js";
+import { decorateRank } from "../dist/js/rank-decoration.js";
+
+test("wallet and profile rank changes preserve content and remove ornament outside the top three", () => {
+  for (const id of ["lobby-wallet", "account-profile-dialog"]) {
+    const classes = new Set();
+    const node = { id, dataset: {}, textContent: "PLAYER 128,500 CHIP",
+      classList: { toggle(name, on) { if (on) classes.add(name); else classes.delete(name); } } };
+    for (const rank of [1, 2, 3, 4, 0, 2]) {
+      decorateRank(node, rank);
+      assert.equal(node.dataset.rank, rank >= 1 && rank <= 3 ? String(rank) : "0");
+      assert.equal(classes.has("rank-panel"), rank >= 1 && rank <= 3);
+      assert.equal(node.textContent, "PLAYER 128,500 CHIP");
+    }
+  }
+});
 test("live rankings change while decoration stays frozen until the game ends",()=>{
   const ranks=new RankSnapshot();
   ranks.update([{playerId:1,rank:1},{playerId:2,rank:3}]);ranks.lock();

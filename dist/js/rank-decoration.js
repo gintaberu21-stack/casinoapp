@@ -9,6 +9,10 @@ export class RankSnapshot {
 export const rankSnapshot = new RankSnapshot();
 const targets = new Map();
 export function decorateRank(node, rank) {
+  if (node.id === "lobby-wallet" || node.id === "account-profile-dialog") {
+    decorateRankPanel(node, rank);
+    return;
+  }
   node.classList.add("rank-avatar");
   node.classList.toggle("has-rank-laurel", [1,2,3].includes(rank));
   let frame = node.querySelector(".rank-laurel");
@@ -30,6 +34,12 @@ export function decorateRank(node, rank) {
   }
   for (const image of frame.querySelectorAll(".rank-frame-image"))
     image.hidden = Number(image.dataset.rank) !== rank;
+}
+// These surfaces keep their content and typography; CSS supplies only the frame.
+export function decorateRankPanel(node, rank) {
+  const position = [1, 2, 3].includes(rank) ? String(rank) : "0";
+  node.dataset.rank = position;
+  node.classList.toggle("rank-panel", position !== "0");
 }
 export function trackRank(node, playerId) { targets.set(node, playerId); decorateRank(node, rankSnapshot.rank(playerId)); }
 function repaint() { for (const [node,id] of targets) { if (!node.isConnected) targets.delete(node); else decorateRank(node,rankSnapshot.rank(id)); } }
