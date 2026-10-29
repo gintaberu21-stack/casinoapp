@@ -386,7 +386,7 @@ dialog p {
   border: 1px solid #d8b45c66; color: #f4d071; overflow: hidden;
 }
 .profile-default-icon { width: 60%; height: 60%; fill: currentColor; }
-.preview-profile:has(img) .profile-default-icon { display: none; }
+.preview-profile:has(> img) .profile-default-icon { display: none; }
 .preview-profile img { position: absolute; inset: 0; }
 .design-preview::before { z-index: 1; }
 .lobby-wallet, .preview-profile, .ranking-crown { z-index: 2; }

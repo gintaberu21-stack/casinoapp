@@ -9,19 +9,27 @@ export class RankSnapshot {
 export const rankSnapshot = new RankSnapshot();
 const targets = new Map();
 export function decorateRank(node, rank) {
-  node.querySelector(".rank-laurel")?.remove();
-  node.classList.remove("has-rank-laurel");
-  if (![1,2,3].includes(rank)) return;
-  node.classList.add("has-rank-laurel");
-  const frame = document.createElement("span");
-  frame.className = `rank-laurel rank-laurel-${rank}`;
-  frame.setAttribute("aria-hidden", "true");
-  const leaves = Array.from({length:6}, (_,i) => {
-    const y = 26+i*9, x = 12-Math.sin(i/5*Math.PI)*8;
-    return `<ellipse cx="${x}" cy="${y}" rx="3" ry="7" transform="rotate(-35 ${x} ${y})"/><ellipse cx="${100-x}" cy="${y}" rx="3" ry="7" transform="rotate(35 ${100-x} ${y})"/>`;
-  }).join("");
-  frame.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="47" r="36" fill="none" stroke="currentColor" stroke-width="2"/>${leaves}<path d="M8 28Q-4 73 42 90M92 28Q104 73 58 90" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="50" cy="88" r="10"/><text x="50" y="92" text-anchor="middle" fill="#211117" font-size="13" font-weight="bold">${rank}</text></svg>`;
-  node.append(frame);
+  node.classList.add("rank-avatar");
+  node.classList.toggle("has-rank-laurel", [1,2,3].includes(rank));
+  let frame = node.querySelector(".rank-laurel");
+  if (!frame) {
+    frame = document.createElement("span");
+    frame.className = "rank-laurel";
+    frame.setAttribute("aria-hidden", "true");
+    for (const position of [1,2,3]) {
+      const image = document.createElement("img");
+      image.className = "rank-frame-image";
+      image.dataset.rank = String(position);
+      image.src = new URL(`../assets/rank-frames/rank-${position}.png`, import.meta.url).href;
+      image.alt = "";
+      image.hidden = true;
+      image.draggable = false;
+      frame.append(image);
+    }
+    node.append(frame);
+  }
+  for (const image of frame.querySelectorAll(".rank-frame-image"))
+    image.hidden = Number(image.dataset.rank) !== rank;
 }
 export function trackRank(node, playerId) { targets.set(node, playerId); decorateRank(node, rankSnapshot.rank(playerId)); }
 function repaint() { for (const [node,id] of targets) { if (!node.isConnected) targets.delete(node); else decorateRank(node,rankSnapshot.rank(id)); } }

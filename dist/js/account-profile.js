@@ -25,7 +25,7 @@ if (dialog) {
     else $("account-avatar").removeAttribute("src");
   }
   function updateHeader(current) {
-    let icon = opener.querySelector("img");
+    let icon = opener.querySelector(":scope > img");
     if (current?.avatar) {
       if (!icon) { icon = document.createElement("img"); icon.alt = "アカウント"; opener.append(icon); }
       icon.src = current.avatar;

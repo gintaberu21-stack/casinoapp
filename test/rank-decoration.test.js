@@ -21,3 +21,25 @@ test("guest snapshot preserves the frozen frame for each player's identity",()=>
   assert.deepEqual(guest.avatarPlayerIds,{player:20,dealer:10});
   game.startRound("player");assert.deepEqual(game.avatarRanks,{player:1,dealer:3});
 });
+test("three image frames stay mounted; changing rank only changes hidden flags", async()=>{
+ const {decorateRank}=await import("../dist/js/rank-decoration.js");
+ class Element {
+  constructor(){this.children=[];this.dataset={};this.classList={add(){},toggle(){}};}
+  append(node){this.children.push(node);}
+  setAttribute(){}
+  querySelector(){return this.children.find(n=>n.className==="rank-laurel")??null;}
+  querySelectorAll(){return this.children.filter(n=>n.className==="rank-frame-image");}
+ }
+ const previous=globalThis.document;
+ globalThis.document={createElement:()=>new Element()};
+ try {
+  const icon=new Element(),photo=new Element(); photo.src="original-photo";icon.append(photo);
+  decorateRank(icon,0);const layer=icon.querySelector(),frames=layer.children;
+  assert.equal(frames.length,3);assert.ok(frames.every(f=>f.hidden));
+  decorateRank(icon,2);assert.deepEqual(frames.map(f=>f.hidden),[true,false,true]);
+  decorateRank(icon,1);assert.deepEqual(frames.map(f=>f.hidden),[false,true,true]);
+  decorateRank(icon,4);assert.ok(frames.every(f=>f.hidden));
+  assert.equal(icon.children[0],photo);assert.equal(photo.src,"original-photo");
+  assert.equal(icon.querySelector(),layer);assert.equal(layer.children.length,3);
+ }finally{globalThis.document=previous;}
+});

@@ -1,16 +1,39 @@
-/* The laurel fits within each avatar's existing box, preserving neighboring controls. */
-.has-rank-laurel { overflow:visible !important; isolation:isolate; }
-.has-rank-laurel > img, .has-rank-laurel > svg, .has-rank-laurel > .account-avatar-default { width:72% !important; height:72% !important; border-radius:50%; object-fit:cover; }
-.preview-profile.has-rank-laurel img { inset:14%; }
-.rank-laurel { position:absolute; inset:0; display:block; pointer-events:none; z-index:3; line-height:1; }
-.rank-laurel svg { display:block; width:100% !important; height:100% !important; fill:currentColor; overflow:visible; }
-.rank-laurel-1 { color:#edc966; filter:drop-shadow(0 0 2px #d8a83a55); }
-.rank-laurel-2 { color:#c9d3e2; }
-.rank-laurel-3 { color:#cb956e; }
-.account-picture.has-rank-laurel > img, .account-picture.has-rank-laurel > .account-avatar-default { position:absolute; inset:14%; }
-.match-profile-avatar.has-rank-laurel { min-width:44px; }.player-badge { position:relative; display:grid; place-items:center; }
-.player-badge img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-.player-badge > svg { width:65%; height:65%; fill:currentColor; }
+/* Reserve space around the original-size portrait; the transparent PNGs extend into that space. */
+.rank-avatar { overflow:visible !important; isolation:isolate; }
 .profile-avatar, .hand-player-avatar, .match-profile-avatar, .player-badge, .account-picture { position:relative; }
-
+.rank-avatar > img:not(.rank-frame-image) { border-radius:50%; object-fit:cover; }
+.rank-laurel { position:absolute; left:-31%; top:-26%; width:162%; height:162%; display:block; pointer-events:none; z-index:3; }
+.rank-laurel .rank-frame-image {
+  position:absolute !important; inset:0 !important; display:block; width:100% !important; height:100% !important;
+  max-width:none !important; border:0 !important; border-radius:0 !important; background:transparent !important;
+  object-fit:contain !important; pointer-events:none;
+}
+.rank-laurel .rank-frame-image[hidden] { display:none !important; }
 .preview-profile > *, .account-picture > * { pointer-events:none; }
+/* Header: allow the photo and its full outer frame between the wallet and crown. */
+.lobby-wallet { left:54.5%; width:20.8%; }
+.preview-profile { left:80.2%; }
+.ranking-crown { left:92%; }
+.design-preview::before { width:46%; }
+/* Dialog: reserve the frame's real footprint, without reducing the 150px photo. */
+.account-card { grid-template-columns:minmax(0,1fr) 246px; gap:22px; }
+.account-picture-area { padding:48px 46px 62px; }
+.account-picture { width:150px; max-width:none; }
+.account-picture-hint { margin-top:50px; }
+/* A stable margin is present even for unranked players, avoiding shifts as ranks change. */
+.profile-bar > button:first-child { padding:22px 28px; gap:27px; }
+body[data-mode] .hand-player-avatar { margin:12px 14px; }
+.match-person { gap:32px; padding:20px 16px 25px; }
+.room-seat { grid-template-columns:44px minmax(0,1fr); padding:28px 24px 32px; column-gap:25px; }
+.room-seats { grid-template-columns:minmax(0,1fr); }
+.room-vs { text-align:center; }
+.player-row { column-gap:30px; padding-block:28px; padding-inline:28px; }
+.player-badge { position:relative; display:grid; place-items:center; }
+.player-badge > img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.player-badge > svg { width:65%; height:65%; fill:currentColor; }
+@media(max-width:600px) {
+  .account-card { grid-template-columns:minmax(0,1fr); justify-items:center; gap:12px; }
+  .account-picture-area { grid-row:1; }
+  .account-details { width:100%; text-align:center; }
+  .player-row { column-gap:24px; padding-inline:22px; }
+}
