@@ -69,13 +69,13 @@ test("square avatar crops stay in bounds for portrait, landscape, zoom and edge 
   assert.deepEqual(avatarCrop(1000, 2000), { sx: 0, sy: 500, size: 1000 });
 });
 
-test("profile still opens and restores its photo and rank targets when touch assets fail", async () => {
+async function profileUI({ put } = {}) {
   const source = (await readFile(new URL("../dist/js/account-profile.js", import.meta.url), "utf8"))
     .replace(/^import .*;\r?\n/gm, "").replace("export function avatarCrop", "function avatarCrop")
     .replace('import("./avatar-gestures.js")', "loadGestures()");
   const elements = new Map();
   function element() {
-    return { hidden: false, children: [], listeners: {}, classList: {add(){}, remove(){}, toggle(){}},
+    return { hidden: false, disabled: false, children: [], listeners: {}, classList: {add(){}, remove(){}, toggle(){}},
       addEventListener(type, fn) { this.listeners[type] = fn; },
       setAttribute(){}, removeAttribute(){}, querySelectorAll(){return [];},
       querySelector(){return this.children.find(child => child.src) ?? null;},
@@ -83,20 +83,32 @@ test("profile still opens and restores its photo and rank targets when touch ass
       showModal(){this.open=true;}, close(){this.open=false;}, textContent: "Photo" };
   }
   function get(id) { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); }
-  const opener = element(), ranked = [];
+  const opener = element(), ranked = [], timers = new Map();
+  const controlIds = ["account-edit", "account-close", "account-edit-cancel", "account-edit-save",
+    "account-photo-select", "account-photo-remove", "account-picture-button", "account-name-input"];
+  get("account-profile-dialog").querySelectorAll = selector => controlIds
+    .filter(id => !selector.includes(":not") || !["account-close", "account-edit-cancel"].includes(id)).map(get);
   const account = {playerId:42,name:"Mobile",avatar,chips:3000};
   const context = vm.createContext({
     document: {getElementById: get, querySelector: () => opener, createElement: element},
     localStorage: {getItem: key => key.endsWith("accountProfile") ? JSON.stringify(account) : "test-token"},
     window: {addEventListener(){}, dispatchEvent(){}},
-    CustomEvent: class {}, URL,
+    CustomEvent: class {}, URL, AbortController,
+    setTimeout: callback => { const id = {}; timers.set(id, callback); return id; },
+    clearTimeout: id => timers.delete(id),
     trackRank: (node,id) => ranked.push([node,id]), refreshRanks: async()=>{},
     syncWalletResponse(){}, normalizeNickname: name=>name, nicknameError: ()=>null,
     loadGestures: () => Promise.reject(Error("asset returned 404")),
-    apiFetch: async()=>({ok:true,headers:{get:()=>"application/json"},json:async()=>({account})}),
+    apiFetch: async(_url, options)=> options?.method === "PUT" && put ? put(options) :
+      ({ok:true,headers:{get:()=>"application/json"},json:async()=>({account})}),
   });
   vm.runInContext(source, context);
   await new Promise(resolve => setImmediate(resolve));
+  return {opener, ranked, get, timers, account};
+}
+
+test("profile still opens and restores its photo and rank targets when touch assets fail", async () => {
+  const {opener, ranked, get} = await profileUI();
   assert.equal(opener.children[0].src, avatar);
   assert.ok(ranked.some(([node,id])=>node===opener&&id===42));
   assert.ok(ranked.some(([node,id])=>node===get("account-picture-button")&&id===42));
@@ -106,4 +118,53 @@ test("profile still opens and restores its photo and rank targets when touch ass
   assert.equal(get("account-avatar").hidden, false);
   assert.equal(get("account-edit").disabled, false);
   assert.equal(get("account-player-chips").textContent, "3,000");
+});
+
+test("a stalled profile save times out, restores editing controls, and can be retried", async () => {
+  let stalled = true, sent;
+  const ui = await profileUI({put: options => {
+    sent = JSON.parse(options.body);
+    return stalled ? new Promise(()=>{}) :
+      {ok:true,headers:{get:()=>"application/json"},json:async()=>({account:{...ui.account,...sent}})};
+  }});
+  const {get, opener, timers} = ui;
+  await opener.listeners.click(); get("account-edit").listeners.click();
+  const pending = get("account-edit-form").listeners.submit({preventDefault(){}});
+  assert.equal(get("account-photo-select").disabled, true);
+  assert.equal(get("account-close").disabled, false);
+  assert.equal(get("account-edit-cancel").disabled, false);
+  assert.equal(timers.size, 1);
+  [...timers.values()][0](); await pending;
+  assert.equal(get("account-photo-select").disabled, false);
+  assert.equal(get("account-edit-save").disabled, false);
+  assert.equal(get("account-edit-form").hidden, false);
+  assert.equal(get("account-avatar").src, avatar);
+  assert.match(get("account-profile-status").textContent, /通信/);
+  stalled = false;
+  await get("account-edit-form").listeners.submit({preventDefault(){}});
+  assert.equal(get("account-edit-form").hidden, true);
+  assert.equal(sent.avatar, avatar);
+  assert.equal(timers.size, 0);
+});
+
+test("cancel and close abort stalled saves; late responses cannot replace the restored profile", async () => {
+  for (const action of ["account-close", "account-edit-cancel"]) {
+    let resolveSave, signal;
+    const {get,opener,timers} = await profileUI({put: options=>{
+      signal = options.signal;
+      return new Promise(resolve=>{resolveSave=resolve;});
+    }});
+    await opener.listeners.click(); get("account-edit").listeners.click();
+    get("account-name-input").value="Changed";
+    const pending = get("account-edit-form").listeners.submit({preventDefault(){}});
+    get(action).listeners.click(); await pending;
+    assert.equal(signal.aborted, true);
+    assert.equal(get("account-edit").disabled, false);
+    assert.equal(get("account-edit-form").hidden, true);
+    assert.equal(timers.size, 0);
+    resolveSave({ok:true,headers:{get:()=>"application/json"},json:async()=>({account:{playerId:42,name:"Changed",chips:3000}})});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(get("account-player-name").textContent,"Mobile");
+    if (action === "account-close") assert.equal(get("account-profile-dialog").open,false);
+  }
 });

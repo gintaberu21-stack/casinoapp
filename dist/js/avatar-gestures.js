@@ -27,23 +27,25 @@ export function bindAvatarGestures(element, { enabled, read, write }) {
     size: rect.width };
   }
   function reset() {
-    pointers.clear(); baseline = null;
+    pointers.clear(); baseline = null; suppressClick = false;
   }
   element.addEventListener("pointerdown", event => {
-    suppressClick = false;
-    if (event.pointerType !== "touch" || !enabled()) return;
-    event.preventDefault();
-    suppressClick = true;
+    if (event.pointerType !== "touch" || !enabled()) { suppressClick = false; return; }
+    if (!pointers.size) suppressClick = false;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.size > 1) { event.preventDefault(); suppressClick = true; }
     element.setPointerCapture(event.pointerId);
     baseline = { ...points(), crop: read() };
   });
   element.addEventListener("pointermove", event => {
     if (!pointers.has(event.pointerId)) return;
     if (!enabled()) { reset(); return; }
-    event.preventDefault();
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     const current = points();
+    if (!suppressClick && Math.hypot(current.center.x - baseline.center.x,
+      current.center.y - baseline.center.y) < 5) return;
+    suppressClick = true;
+    event.preventDefault();
     write(gestureCrop(baseline.crop, baseline.center, current.center,
       baseline.distance > 0 ? current.distance / baseline.distance : 1, baseline.size));
   });
@@ -54,7 +56,7 @@ export function bindAvatarGestures(element, { enabled, read, write }) {
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
     element.addEventListener(type, end);
   element.addEventListener("click", event => {
-    // A touch on an active crop edits it; selecting another photo has its own button.
+    // Suppress the click after a drag/pinch, but keep a normal tap usable.
     if (suppressClick && event.detail !== 0) {
       suppressClick = false; event.preventDefault(); event.stopImmediatePropagation();
     }

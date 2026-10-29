@@ -15,6 +15,7 @@ if (dialog) {
   const status = $("account-profile-status");
   let account = null, editing = false, saving = false, draftAvatar = null, image = null, objectUrl = null;
   let loadVersion = 0;
+  let saveController = null;
   const picture = $("account-picture-button");
   const originalPictureHint = $("account-picture-hint").textContent;
   let resetGestures = () => {}, gesturesReady = false;
@@ -66,7 +67,7 @@ if (dialog) {
     objectUrl = null; image = null;
     $("account-photo-file").value = "";
   }
-  function setEditing(value) {
+  function setEditing(value, focusName = true) {
     editing = value;
     $("account-edit-form").hidden = !value;
     $("account-player-name").hidden = value;
@@ -82,26 +83,47 @@ if (dialog) {
     $("account-name-input").removeAttribute("aria-invalid");
     releaseImage();
     showAvatar(draftAvatar);
-    if (value) $("account-name-input").focus();
+    if (value && focusName) $("account-name-input").focus();
   }
   function commit(current) {
     syncWalletResponse({ account: current });
     window.dispatchEvent(new CustomEvent("casino:profile-updated", { detail: current }));
     render(current);
   }
-  async function request(method, body) {
+  async function request(method, body, signal) {
     const token = localStorage.getItem("casinoDuel.accountToken");
     if (!token) throw Error("ホーム画面でアカウントにログインしてください。");
-    const response = await apiFetch("/api/account", {
-      method, headers: { Authorization: "Bearer " + token, ...(body ? { "Content-Type": "application/json" } : {}) },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      cache: "no-store",
-    });
-    if (!response.headers.get("content-type")?.includes("application/json"))
-      throw Error("サーバーの更新が必要です。再起動後にもう一度お試しください。");
-    const data = await response.json();
-    if (!response.ok) throw Error(data.error ?? "保存できませんでした。");
-    return data.account;
+    const controller = new AbortController();
+    let rejectAborted;
+    const aborted = new Promise((_, reject) => { rejectAborted = reject; });
+    const cancel = () => {
+      rejectAborted(new Error("保存をキャンセルしました。"));
+      controller.abort();
+    };
+    if (signal?.aborted) throw new Error("保存をキャンセルしました。");
+    signal?.addEventListener("abort", cancel, { once: true });
+    const timeout = setTimeout(() => {
+      rejectAborted(new Error("通信が完了しませんでした。接続を確認して、もう一度保存してください。"));
+      controller.abort();
+    }, 15000);
+    try {
+      return await Promise.race([(async () => {
+        const response = await apiFetch("/api/account", {
+          method, headers: { Authorization: "Bearer " + token, ...(body ? { "Content-Type": "application/json" } : {}) },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.headers.get("content-type")?.includes("application/json"))
+          throw Error("サーバーの更新が必要です。再起動後にもう一度お試しください。");
+        const data = await response.json();
+        if (!response.ok) throw Error(data.error ?? "保存できませんでした。");
+        return data.account;
+      })(), aborted]);
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", cancel);
+    }
   }
   opener.addEventListener("click", async () => {
     render(); setEditing(false); dialog.showModal();
@@ -109,14 +131,16 @@ if (dialog) {
     catch (error) { status.textContent = error.message; }
   });
   $("account-edit").addEventListener("click", () => setEditing(true));
-  $("account-edit-cancel").addEventListener("click", () => { setEditing(false); render(account); });
-  function close() { if (saving) return; setEditing(false); dialog.close(); }
+  $("account-edit-cancel").addEventListener("click", () => {
+    saveController?.abort(); setEditing(false); render(account);
+  });
+  function close() { saveController?.abort(); setEditing(false); dialog.close(); }
   $("account-close").addEventListener("click", close);
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
   dialog.addEventListener("click", event => { if (event.target === dialog) close(); });
   function choosePhoto() {
     if (saving || !account?.playerId) return;
-    if (!editing) setEditing(true);
+    if (!editing) setEditing(true, false);
     $("account-photo-file").click();
   }
   $("account-picture-button").addEventListener("click", choosePhoto);
@@ -150,7 +174,7 @@ if (dialog) {
       await preview.decode();
       if (version !== loadVersion || !editing) return;
       image = preview;
-      picture.classList.add("is-touch-cropping");
+      picture.classList.toggle("is-touch-cropping", gesturesReady);
       $("account-photo-zoom").value = "1";
       $("account-photo-x").value = $("account-photo-y").value = "0";
       redraw();
@@ -179,15 +203,19 @@ if (dialog) {
     status.classList.remove("is-error");
     $("account-name-input").removeAttribute("aria-invalid");
     saving = true;
-    const controls = dialog.querySelectorAll("button, input");
+    const controller = saveController = new AbortController();
+    const controls = dialog.querySelectorAll("button:not(#account-close):not(#account-edit-cancel), input");
     controls.forEach(control => { control.disabled = true; });
     status.textContent = "保存中…";
     try {
-      const updated = await request("PUT", { name, avatar: draftAvatar });
+      const updated = await request("PUT", { name, avatar: draftAvatar }, controller.signal);
       editing = false; commit(updated); setEditing(false);
       status.textContent = "プロフィールを保存しました。";
-    } catch (error) { status.textContent = error.message; status.classList.add("is-error"); }
+    } catch (error) {
+      if (!controller.signal.aborted) { status.textContent = error.message; status.classList.add("is-error"); }
+    }
     finally {
+      saveController = null;
       saving = false;
       controls.forEach(control => { control.disabled = false; });
       $("account-edit").disabled = editing || !account?.playerId;

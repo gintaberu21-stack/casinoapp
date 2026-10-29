@@ -49,3 +49,21 @@ test("touch transitions from pinch to pan without jumping; mouse keeps its exist
   active = true; emit("pointerdown", 3, 50); reset();
   emit("pointermove", 3, 80); assert.equal(writes, before);
 });
+
+test("a normal photo tap still opens its picker, while dragging suppresses the follow-up click", () => {
+  const listeners = new Map();
+  const element = {addEventListener: (type,fn)=>listeners.set(type,fn),
+    getBoundingClientRect:()=>({left:0,top:0,width:150}),setPointerCapture(){}};
+  const reset = bindAvatarGestures(element,{enabled:()=>true,
+    read:()=>({width:1000,height:1500,zoom:2,x:0,y:0}),write(){}});
+  function pointer(type,x){listeners.get(type)({pointerType:"touch",pointerId:1,
+    clientX:x,clientY:50,preventDefault(){}});}
+  function click(){let blocked=false;listeners.get("click")({detail:1,
+    preventDefault(){blocked=true;},stopImmediatePropagation(){}});return blocked;}
+  pointer("pointerdown",50);pointer("pointermove",52);pointer("pointerup",52);
+  assert.equal(click(),false);
+  pointer("pointerdown",50);pointer("pointermove",75);pointer("pointerup",75);
+  assert.equal(click(),true);
+  pointer("pointerdown",50);pointer("pointermove",75);reset();
+  assert.equal(click(),false);
+});
