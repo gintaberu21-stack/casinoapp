@@ -70,6 +70,7 @@ body[data-mode] .hand-player-avatar { margin:12px 14px; }
 .lobby-wallet.rank-panel::before { left:-10px; }
 .lobby-wallet.rank-panel::after { right:-10px; transform:scaleX(-1); }
 .account-profile-dialog.rank-panel {
+  padding-top:100px;
   border-color:var(--rank-edge);
   box-shadow:inset 0 0 30px var(--rank-shadow), 0 16px 70px #0009, 0 0 20px var(--rank-shadow);
 }
@@ -90,4 +91,6 @@ body[data-mode] .hand-player-avatar { margin:12px 14px; }
   filter:var(--rank-filter); pointer-events:none;
 }
 .account-profile-dialog.rank-panel > .account-edit,
-.account-profile-dialog.rank-panel > .dialog-close { z-index:1; }
+.account-profile-dialog.rank-panel > .dialog-close { top:44px; z-index:1; }
+.account-profile-dialog.rank-panel > .account-edit { left:76px; }
+.account-profile-dialog.rank-panel > .dialog-close { right:76px; }
