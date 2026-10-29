@@ -167,6 +167,7 @@ export class MatchService extends EventTarget {
         debt: player.debt,
         bet: player.bet,
         stats: player.stats,
+        localStats: player.localStats,
       }))
       .sort((a, b) => a.id - b.id);
   }

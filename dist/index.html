@@ -13,7 +13,7 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23160406'/%3E%3Cpath d='M32 8 52 32 32 56 12 32Z' fill='%23d8a937' stroke='%23fff0aa' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='8' fill='%237b101e'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="./styles.css?v=layout-12" />
+    <link rel="stylesheet" href="./styles.css?v=local-win-rate-1" />
     <link rel="stylesheet" href="./responsive.css?v=layout-13" />
     <title>CASINO DUEL</title>
   <link rel="stylesheet" href="./rank-decoration.css" />
@@ -466,10 +466,10 @@
         ><p>MATCH ROOM</p><h2 id="room-title">対戦部屋</h2
         ><div class="room-seats"
           ><div class="room-seat"
-            ><span class="match-profile-avatar" id="room-host-avatar" aria-hidden="true"></span><strong id="room-host">PLAYER 1</strong><small>HOST</small></div
+            ><span class="match-profile-avatar" id="room-host-avatar" aria-hidden="true"></span><strong id="room-host">PLAYER 1</strong><small>HOST</small><span id="room-host-win-rate" class="room-win-rate">勝率 0%</span></div
           ><div class="room-vs">VS</div
           ><div class="room-seat"
-            ><span class="match-profile-avatar" id="room-guest-avatar" aria-hidden="true"></span><strong id="room-guest">PLAYER 2</strong><small>GUEST</small></div
+            ><span class="match-profile-avatar" id="room-guest-avatar" aria-hidden="true"></span><strong id="room-guest">PLAYER 2</strong><small>GUEST</small><span id="room-guest-win-rate" class="room-win-rate">勝率 0%</span></div
           ></div
         ><button class="start-button" id="room-start" type="button"
           ><span>GAME START</span><small id="room-start-note">対戦開始</small></button
@@ -477,7 +477,7 @@
       ></div
     >
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./js/app.js?v=layout-11"></script>
+    <script type="module" src="./js/app.js?v=local-win-rate-1"></script>
     <dialog class="info-dialog" id="game-help">
       <div class="dialog-panel">
         <button class="dialog-close" type="button" aria-label="閉じる">×</button>
@@ -530,6 +530,6 @@
         <p class="guide-hint">左右にスワイプしても切り替えられます</p>
       </div>
     </dialog>
-    <script type="module" src="./js/shared-footer.js?v=1"></script>
+    <script type="module" src="./js/shared-footer.js?v=local-win-rate-1"></script>
   </body>
 </html>

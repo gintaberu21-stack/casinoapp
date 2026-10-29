@@ -131,3 +131,5 @@ body:has(.design-preview) .lobby-design {
   font-weight: 700;
   margin-top: 3px;
 }
+.game-record-list .record-summary { display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; }
+.game-record-list .record-local-rate { color:#f4d589; white-space:nowrap; }

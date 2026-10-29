@@ -9,7 +9,7 @@ import { connect, close } from "./db.js";
 import { Store } from "./store.js";
 import { createAccessGate } from "./access.js";
 import { accountProfileChanges } from "./account-profile.js";
-import { recordBlackjackGains } from "./rankings.js";
+import { recordBlackjackGains, recordLocalMatchResult } from "./rankings.js";
 import { slotAction } from "./slot.js";
 import { rouletteAction } from "./roulette.js";
 
@@ -100,6 +100,7 @@ const publicAccount = (account) =>
         bet: account.bet ?? { amount: 100, multiplier: 1 },
         gainedChips: account.gainedChips ?? 0,
         stats: account.stats ?? { matches: 0, wins: 0, losses: 0, draws: 0 },
+        localStats: account.localStats ?? { matches: 0, wins: 0, losses: 0, draws: 0 },
       }
     : null;
 
@@ -198,6 +199,7 @@ async function broadcastRoster() {
 /** 申し込み中・対戦中の相手との関係を解消し、相手にも知らせる。 */
 async function releasePeer(socket, reason) {
   const { peerId } = socket;
+  socket.localMatch = null;
   // The stake is already deducted when a bet is confirmed. Never refund the departing account.
   if (socket.playerId) await store.updateAccount(socket.playerId, { pendingBet: null });
   if (!peerId) return;
@@ -205,6 +207,7 @@ async function releasePeer(socket, reason) {
   socket.peerId = null;
   const peerSocket = sockets.get(peerId);
   if (peerSocket && peerSocket.peerId === socket.playerId) {
+    peerSocket.localMatch = null;
     peerSocket.peerId = null;
     const remaining = await store.findAccountById(peerId);
     if (remaining?.pendingBet) {
@@ -398,6 +401,12 @@ wss.on("connection", (socket) => {
 
       if (message.type === "start") {
         if (socket.peerId !== target) return;
+        const peerSocket = sockets.get(target);
+        if (!peerSocket || peerSocket.peerId !== socket.playerId) return;
+        if (!socket.localMatch || socket.localMatch.finished) {
+          const match = { id: crypto.randomUUID(), hostId: socket.playerId, guestId: target, finished: false };
+          socket.localMatch = peerSocket.localMatch = match;
+        }
         sendTo(target, { type: "start", from: socket.playerId });
         return;
       }
@@ -421,6 +430,11 @@ wss.on("connection", (socket) => {
       }
 
       if (message.type === "result") {
+        if (socket.peerId) {
+          const match = socket.localMatch;
+          if (match?.hostId !== socket.playerId || match.guestId !== socket.peerId ||
+              !(await recordLocalMatchResult(store, match, message.payload))) return;
+        }
         await store.saveMatch({
           host: socket.playerId,
           guest: socket.peerId ?? null,
@@ -444,11 +458,14 @@ wss.on("connection", (socket) => {
         const guestOutcome =
           hostOutcome === "win" ? "loss" : hostOutcome === "loss" ? "win" : "draw";
         const hostAccount = await store.recordOutcome(socket.playerId, hostOutcome);
+        await store.updatePlayerProfile(socket.playerId, publicAccount(hostAccount));
         send(socket, { type: "account", account: publicAccount(hostAccount) });
         if (socket.peerId) {
           const guestAccount = await store.recordOutcome(socket.peerId, guestOutcome);
+          await store.updatePlayerProfile(socket.peerId, publicAccount(guestAccount));
           sendTo(socket.peerId, { type: "account", account: publicAccount(guestAccount) });
         }
+        await broadcastRoster();
         return;
       }
 

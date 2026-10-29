@@ -1,5 +1,15 @@
 import { inventoryValue } from "../dist/js/game.js";
 
+export async function recordLocalMatchResult(store, match, payload) {
+  if (!match?.id || !match.hostId || !match.guestId || match.finished ||
+      payload?.matchComplete !== true || !["win", "loss", "draw"].includes(payload.winner)) return false;
+  const opposite = payload.winner === "win" ? "loss" : payload.winner === "loss" ? "win" : "draw";
+  await store.recordLocalOutcome(match.hostId, payload.winner, match.id);
+  await store.recordLocalOutcome(match.guestId, opposite, match.id);
+  match.finished = true;
+  return true;
+}
+
 export async function recordBlackjackGains(store, hostId, peerId, payload) {
   if (!payload || typeof payload.id !== "string" ||
       !/^[\w:-]{20,120}$/.test(payload.id) ||

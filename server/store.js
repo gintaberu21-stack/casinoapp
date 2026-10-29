@@ -113,6 +113,7 @@ export class Store {
       gainedChips: 0,
       gainedByGame: { blackjack: 0, roulette: 0, slot: 0 },
       stats: { matches: 0, wins: 0, losses: 0, draws: 0 },
+      localStats: { matches: 0, wins: 0, losses: 0, draws: 0 },
       createdAt: now,
       updatedAt: now,
     };
@@ -201,6 +202,32 @@ export class Store {
         { $inc: { "stats.matches": 1, [`stats.${field}`]: 1 }, $set: { updatedAt: new Date() } },
         { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
       );
+  }
+
+  async recordLocalOutcome(playerId, outcome, matchId) {
+    if (!["win", "loss", "draw"].includes(outcome) || !matchId) return null;
+    const field = outcome === "win" ? "wins" : outcome === "loss" ? "losses" : "draws";
+    if (!this.usesMongo) {
+      const account = await this.findAccountById(playerId);
+      if (!account) return null;
+      account.localMatchIds ??= [];
+      if (!account.localMatchIds.includes(matchId)) {
+        account.localStats ??= { matches: 0, wins: 0, losses: 0, draws: 0 };
+        account.localStats.matches++;
+        account.localStats[field]++;
+        account.localMatchIds.push(matchId);
+        account.updatedAt = new Date();
+        await this.persistLocalAccounts();
+      }
+      return { ...account };
+    }
+    const account = await this.database.collection("accounts").findOneAndUpdate(
+      { playerId, localMatchIds: { $ne: matchId } },
+      { $inc: { "localStats.matches": 1, [`localStats.${field}`]: 1 },
+        $addToSet: { localMatchIds: matchId }, $set: { updatedAt: new Date() } },
+      { returnDocument: "after", includeResultMetadata: false, projection: { _id: 0 } },
+    );
+    return account ?? this.findAccountById(playerId);
   }
 
   async addPlayer(player) {

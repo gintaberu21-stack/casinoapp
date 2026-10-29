@@ -646,6 +646,7 @@ async function finishRound({ forfeit = null } = {}) {
     ui.showResult(result, game);
     syncState("result", result);
     if (game.mode !== "duo") matchService.saveResult({
+      matchComplete: true,
       winner: result.matchOutcome,
       chips: result.chips,
       debts: result.debts,

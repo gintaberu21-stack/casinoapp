@@ -1,7 +1,7 @@
-import { readGameRecords } from "./game-records.js";
+import { readGameRecords, localWinRate } from "./game-records.js";
 const stylesheet = document.createElement("link");
 stylesheet.rel = "stylesheet";
-stylesheet.href = new URL("../shared-footer.css?v=1", import.meta.url).href;
+stylesheet.href = new URL("../shared-footer.css?v=local-win-rate-1", import.meta.url).href;
 document.head.append(stylesheet);
 const chipStyles = document.createElement("link");
 chipStyles.rel = "stylesheet";
@@ -53,7 +53,16 @@ function showRecords() {
     const title = document.createElement("strong");
     title.textContent = name + (practice ? "（練習）" : "");
     const summary = document.createElement("span");
-    summary.textContent = `${stats?.matches ?? 0}回　${stats?.wins ?? 0}勝 / ${stats?.losses ?? 0}敗 / ${stats?.draws ?? 0}分`;
+    summary.className = "record-summary";
+    const totals = document.createElement("span");
+    totals.textContent = `${stats?.matches ?? 0}回　${stats?.wins ?? 0}勝 / ${stats?.losses ?? 0}敗 / ${stats?.draws ?? 0}分`;
+    summary.append(totals);
+    if (name === "ブラックジャック") {
+      const rate = document.createElement("span");
+      rate.className = "record-local-rate";
+      rate.textContent = `ローカル勝率 ${localWinRate(account?.localStats)}`;
+      summary.append(rate);
+    }
     const gain = document.createElement("span");
     gain.className = "record-chip-gain";
     const gains = name === "ブラックジャック" ? records.blackjack : stats;
@@ -63,7 +72,7 @@ function showRecords() {
   }
   const note = document.createElement("small");
   note.textContent =
-    "ブラックジャックの勝敗は全ラウンド終了後の最終結果で1ゲームとして集計します。獲得チップは記録開始後の配当合計（ベットの返却分を含む）です。ルーレット・スロットの勝敗は配当−ベットで判定。記録はこのブラウザのアカウントごとに保存します。";
+    "ブラックジャックの勝敗は全ラウンド終了後の最終結果で1マッチとして集計します。ローカル勝率は別端末とのローカル対戦のみが対象で、勝利数÷完了マッチ数（引き分けを含む）です。ローカル専用の記録は機能追加後から集計し、アカウントに保存します。獲得チップは配当合計（ベットの返却分を含む）です。その他の戦績はこのブラウザのアカウントごとに保存します。";
   text.append(list, note);
   if (!dialog.open) dialog.showModal();
 }

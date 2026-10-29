@@ -1,5 +1,11 @@
 import { inventoryValue } from "./game.js";
 
+export function localWinRate(stats) {
+  const matches = Math.max(0, Number(stats?.matches) || 0);
+  const wins = Math.max(0, Number(stats?.wins) || 0);
+  return matches ? `${Math.min(100, wins / matches * 100).toFixed(1).replace(/\.0$/, "")}%` : "0%";
+}
+
 const key = () =>
   `casinoDuel.gameRecords.${localStorage.getItem("casinoDuel.accountToken") ?? "guest"}`;
 export function readGameRecords() {

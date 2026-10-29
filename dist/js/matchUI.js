@@ -1,4 +1,5 @@
 import { trackRank } from "./rank-decoration.js";
+import { localWinRate } from "./game-records.js";
 const SUITS = ["♠", "♦", "♥", "♣"];
 const suitOf = (id) => SUITS[(Number(id) - 1) % SUITS.length] ?? "♠";
 
@@ -52,12 +53,12 @@ export class MatchScreen {
     });
 
     this.service.addEventListener("welcome", (event) => this.showId(event.detail.id));
-    this.service.addEventListener("account", () => this.showId(this.service.id));
+    this.service.addEventListener("account", () => { this.showId(this.service.id); this.renderRoomRates(); });
     this.service.addEventListener("connection", (event) => {
       if (!event.detail.connected) this.showId("—");
       this.render();
     });
-    this.service.addEventListener("roster", () => this.render());
+    this.service.addEventListener("roster", () => { this.render(); this.renderRoomRates(); });
     this.service.addEventListener("invited", (event) => this.showInvite(event.detail.peerId));
     this.service.addEventListener("paired", (event) => this.showRoom(event.detail));
     this.service.addEventListener("declined", () => {
@@ -204,10 +205,12 @@ export class MatchScreen {
   }
 
   showRoom({ peerId, isHost }) {
+    this.roomPlayers = { peerId, isHost };
     const me = this.service.account?.name ?? `PLAYER ${this.service.id}`;
     const peer = this.service.player(peerId)?.name ?? `PLAYER ${peerId}`;
     this.els["room-host"].textContent = isHost ? me : peer;
     this.els["room-guest"].textContent = isHost ? peer : me;
+    this.renderRoomRates();
     this.renderAvatar(this.els["room-host-avatar"], isHost ? this.service.account : this.service.player(peerId));
     this.renderAvatar(this.els["room-guest-avatar"], isHost ? this.service.player(peerId) : this.service.account);
     this.els["room-title"].textContent = "対戦部屋";
@@ -216,5 +219,14 @@ export class MatchScreen {
     this.els["room-overlay"].hidden = false;
     this.ui.cue("special");
     this.render();
+  }
+
+  renderRoomRates() {
+    if (!this.roomPlayers) return;
+    const { peerId, isHost } = this.roomPlayers;
+    const me = this.service.account;
+    const peer = this.service.player(peerId);
+    this.els["room-host-win-rate"].textContent = `勝率 ${localWinRate((isHost ? me : peer)?.localStats)}`;
+    this.els["room-guest-win-rate"].textContent = `勝率 ${localWinRate((isHost ? peer : me)?.localStats)}`;
   }
 }

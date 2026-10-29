@@ -25,7 +25,7 @@
 .profile-bar > button:first-child { padding:22px 28px; gap:27px; }
 body[data-mode] .hand-player-avatar { margin:12px 14px; }
 .match-person { gap:32px; padding:20px 16px 25px; }
-.room-seat { grid-template-columns:44px minmax(0,1fr); padding:28px 24px 32px; column-gap:25px; }
+.room-seat { grid-template-columns:44px minmax(0,1fr) max-content; padding:28px 24px 32px; column-gap:25px; }
 .room-seats { grid-template-columns:minmax(0,1fr); }
 .room-vs { text-align:center; }
 .player-row { column-gap:30px; padding-block:28px; padding-inline:28px; }
@@ -37,4 +37,7 @@ body[data-mode] .hand-player-avatar { margin:12px 14px; }
   .account-picture-area { grid-row:1; }
   .account-details { width:100%; text-align:center; }
   .player-row { column-gap:24px; padding-inline:22px; }
+}
+@media(max-width:380px) {
+  .room-seat { padding-inline:16px; column-gap:14px; }
 }
