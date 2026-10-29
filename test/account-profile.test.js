@@ -68,3 +68,42 @@ test("square avatar crops stay in bounds for portrait, landscape, zoom and edge 
   }
   assert.deepEqual(avatarCrop(1000, 2000), { sx: 0, sy: 500, size: 1000 });
 });
+
+test("profile still opens and restores its photo and rank targets when touch assets fail", async () => {
+  const source = (await readFile(new URL("../dist/js/account-profile.js", import.meta.url), "utf8"))
+    .replace(/^import .*;\r?\n/gm, "").replace("export function avatarCrop", "function avatarCrop")
+    .replace('import("./avatar-gestures.js")', "loadGestures()");
+  const elements = new Map();
+  function element() {
+    return { hidden: false, children: [], listeners: {}, classList: {add(){}, remove(){}, toggle(){}},
+      addEventListener(type, fn) { this.listeners[type] = fn; },
+      setAttribute(){}, removeAttribute(){}, querySelectorAll(){return [];},
+      querySelector(){return this.children.find(child => child.src) ?? null;},
+      append(child){this.children.push(child);}, focus(){},
+      showModal(){this.open=true;}, close(){this.open=false;}, textContent: "Photo" };
+  }
+  function get(id) { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); }
+  const opener = element(), ranked = [];
+  const account = {playerId:42,name:"Mobile",avatar,chips:3000};
+  const context = vm.createContext({
+    document: {getElementById: get, querySelector: () => opener, createElement: element},
+    localStorage: {getItem: key => key.endsWith("accountProfile") ? JSON.stringify(account) : "test-token"},
+    window: {addEventListener(){}, dispatchEvent(){}},
+    CustomEvent: class {}, URL,
+    trackRank: (node,id) => ranked.push([node,id]), refreshRanks: async()=>{},
+    syncWalletResponse(){}, normalizeNickname: name=>name, nicknameError: ()=>null,
+    loadGestures: () => Promise.reject(Error("asset returned 404")),
+    apiFetch: async()=>({ok:true,headers:{get:()=>"application/json"},json:async()=>({account})}),
+  });
+  vm.runInContext(source, context);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(opener.children[0].src, avatar);
+  assert.ok(ranked.some(([node,id])=>node===opener&&id===42));
+  assert.ok(ranked.some(([node,id])=>node===get("account-picture-button")&&id===42));
+  await opener.listeners.click();
+  assert.equal(get("account-profile-dialog").open, true);
+  assert.equal(get("account-avatar").src, avatar);
+  assert.equal(get("account-avatar").hidden, false);
+  assert.equal(get("account-edit").disabled, false);
+  assert.equal(get("account-player-chips").textContent, "3,000");
+});
