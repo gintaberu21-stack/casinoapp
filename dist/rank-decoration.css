@@ -99,11 +99,11 @@ body[data-mode] .hand-player-avatar { margin:12px 14px; }
 .design-preview::before { left:3%; top:1.5%; width:97%; height:5.1%; }
 .lobby-brand-title {
   width:36%; height:4.4%; flex-direction:column; justify-content:center;
-  align-items:flex-start; gap:.22em; font-size:min(5vw,43.2px); z-index:2;
+  align-items:center; gap:.22em; font-size:min(5vw,43.2px); z-index:2;
 }
 .lobby-brand-subtitle {
   color:#e9bc6b; font-size:clamp(6px,1.224vw,10.575px); letter-spacing:.22em; line-height:1;
-  padding-left:.1em;
+  padding-left:.22em; margin-left:0; text-align:center;
 }
 .design-preview .lobby-wallet {
   left:46%; width:28%; top:2%; height:auto;
