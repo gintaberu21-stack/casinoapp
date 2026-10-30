@@ -1,5 +1,6 @@
 import { createDeck, scoreHand } from "./deck.js";
 import { dealSpecials } from "./skills.js";
+import { bestSwap } from "./cpu-strategy.js";
 
 const opponentOf = (actor) => (actor === "player" ? "dealer" : "player");
 
@@ -381,7 +382,7 @@ export class CasinoDuelGame {
     const preferred = [
       playerScore >= 18 && this.skills.dealer.find(({ id }) => id === "selectReverse"),
       this.skills.dealer.find(({ id }) => id === "lock"),
-      this.skills.dealer.find(({ id }) => id === "shuffle"),
+      bestSwap(this.dealer, this.player) && this.skills.dealer.find(({ id }) => id === "shuffle"),
       this.skills.dealer.find(({ id }) => id === "selectReverse"),
       dealerScore <= 15 && this.skills.dealer.find(({ id }) => id === "extraDraw"),
       this.skills.dealer.find(({ id }) => id === "shield"),
@@ -394,8 +395,15 @@ export class CasinoDuelGame {
   dealerShouldHit() {
     const dealer = this.score("dealer");
     const player = this.score("player");
-    if (this.difficulty === "hard") return dealer < 17 || (dealer < player && dealer < 21);
-    return dealer < 20;
+    if (dealer >= 21 || player > 21) return false;
+    // Once the rival stands, protect a winning hand instead of chasing 20.
+    if (this.stood.player && dealer > player) return false;
+    // Standing while already behind a finished hand guarantees a loss.
+    if (this.stood.player && dealer < player) return true;
+    if (this.difficulty === "hard") {
+      return dealer < 17 || (dealer === 17 && scoreHand(this.dealer).soft) || dealer < player;
+    }
+    return dealer < 17;
   }
 
   isRoundOver() {

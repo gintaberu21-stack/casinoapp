@@ -1,3 +1,4 @@
+import { bestSwap } from "./cpu-strategy.js";
 import { trackRank, refreshRanks } from "./rank-decoration.js";
 import { normalizeNickname, nicknameError } from "./nickname.js";
 import { CasinoDuelGame, DIFFICULTY_PAYOUTS } from "./game.js";
@@ -455,28 +456,6 @@ function bestDiscardId(cards) {
       return { id: card.id, value: total <= 21 ? total : -total };
     })
     .sort((a, b) => b.value - a.value)[0]?.id;
-}
-
-function bestSwap(cards, opponentCards) {
-  const choices = [];
-  cards.forEach((ownCard) =>
-    opponentCards.forEach((opponentCard) => {
-      const ownAfter = cards.map((card) => (card.id === ownCard.id ? opponentCard : card));
-      const opponentAfter = opponentCards.map((card) =>
-        card.id === opponentCard.id ? ownCard : card,
-      );
-      const ownScore = scoreHand(ownAfter).total;
-      const opponentScore = scoreHand(opponentAfter).total;
-      const ownValue = ownScore <= 21 ? ownScore : -30 - ownScore;
-      const opponentValue = opponentScore > 21 ? 28 : -opponentScore;
-      choices.push({
-        actorCardId: ownCard.id,
-        opponentCardId: opponentCard.id,
-        value: ownValue + opponentValue * 0.45,
-      });
-    }),
-  );
-  return choices.sort((a, b) => b.value - a.value)[0];
 }
 
 async function useSpecial(id) {
