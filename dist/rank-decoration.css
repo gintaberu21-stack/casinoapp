@@ -95,14 +95,22 @@ body[data-mode] .hand-player-avatar { margin:12px 14px; }
 .account-profile-dialog.rank-panel > .account-edit { left:76px; }
 .account-profile-dialog.rank-panel > .dialog-close { right:76px; }
 
-/* Give the account name priority over the brand on narrow lobby headers. */
-@media(max-width:600px) {
-  .design-preview::before { left:3%; top:1.5%; width:97%; height:4.8%; }
-  .lobby-brand-title { width:24%; font-size:3.4vw; z-index:2; }
-  .lobby-wallet { left:32%; width:42%; }
-  .design-preview .lobby-wallet {
-    top:2%; height:4.2%; flex-direction:column;
-    justify-content:center; gap:0; line-height:1.15;
-  }
-  .lobby-wallet-name { flex-shrink:0; max-width:100%; }
+/* Keep both brand lines and the full account name at every viewport width. */
+.design-preview::before { left:3%; top:1.5%; width:97%; height:5.1%; }
+.lobby-brand-title {
+  width:24%; height:4.4%; flex-direction:column; justify-content:center;
+  align-items:flex-start; gap:.22em; font-size:min(3.4vw,29.376px); z-index:2;
+}
+.lobby-brand-subtitle {
+  color:#e9bc6b; font-size:clamp(6px,1.224vw,10.575px); letter-spacing:.22em; line-height:1;
+  padding-left:.1em;
+}
+.design-preview .lobby-wallet {
+  left:32%; width:42%; top:2%; height:auto;
+  min-height:min(8.87vw,76.64px); padding-block:.45em;
+  flex-direction:column; justify-content:center; gap:0; line-height:1.15;
+}
+.design-preview .lobby-wallet-name {
+  flex-shrink:0; max-width:100%; overflow:visible;
+  white-space:normal; overflow-wrap:anywhere; text-overflow:clip; text-align:center;
 }
